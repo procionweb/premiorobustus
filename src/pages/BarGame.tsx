@@ -285,7 +285,7 @@ export default function BarGame() {
       if (!frame) return;
       const drawH = Math.min(height * 0.205, 168);
       const drawW = drawH * (frame.width / frame.height);
-      const floorY = height * 0.415;
+      const floorY = height * 0.475;
       ctx.save();
       ctx.globalAlpha = 0.96;
       ctx.imageSmoothingEnabled = true;
@@ -296,7 +296,7 @@ export default function BarGame() {
 
     const drawBackgroundPeople = (celebrating: boolean) => {
       const suffix = celebrating ? "Cheer" : "Idle";
-      [0.1, 0.36, 0.64, 0.9].forEach((position, index) => {
+      [0.2, 0.4, 0.6, 0.8].forEach((position, index) => {
         drawBackgroundPerson(backgroundPeopleFrames.current[`person${index}${suffix}`], width * position);
       });
     };
