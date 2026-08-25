@@ -266,7 +266,7 @@ export default function BarGame() {
       if (item.kind === "drink") {
         const bottle = bottleFramesRef.current[item.variant % 9];
         if (bottle) {
-          const drawH = 76;
+          const drawH = 86;
           const drawW = drawH * (bottle.width / bottle.height);
           ctx.shadowColor = "rgba(0,0,0,.38)";
           ctx.shadowBlur = 7;
@@ -279,11 +279,11 @@ export default function BarGame() {
           ctx.fill();
         }
       } else if (item.kind === "medicine") {
-        drawRemedy(remedyImagesRef.current.medicine, 54, 62);
+        drawRemedy(remedyImagesRef.current.medicine, 44, 52);
       } else if (item.kind === "glucose") {
         drawRemedy(remedyImagesRef.current.glucose, 82, 48);
       } else {
-        drawRemedy(remedyImagesRef.current.water, 38, 68);
+        drawRemedy(remedyImagesRef.current.water, 46, 80);
       }
       ctx.restore();
     };
@@ -442,7 +442,7 @@ export default function BarGame() {
       if (spawnClock >= interval) {
         spawnClock = 0;
         const roll = Math.random();
-        const kind: FallingItem["kind"] = roll < 0.72 ? "drink" : roll < 0.83 ? "water" : roll < 0.92 ? "medicine" : "glucose";
+        const kind: FallingItem["kind"] = roll < 0.84 ? "drink" : roll < 0.91 ? "water" : roll < 0.96 ? "medicine" : "glucose";
         items.push({ x: 30 + Math.random() * (width - 60), y: -40, speed: 150 + Math.random() * 95, kind, spin: 0, variant: Math.floor(Math.random() * 9) });
       }
 
