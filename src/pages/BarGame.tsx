@@ -17,16 +17,20 @@ export default function BarGame() {
   const jacksonFramesRef = useRef<HTMLCanvasElement[]>([]);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
-  const rafRef = useRef(0);
   const [screen, setScreen] = useState<Screen>("start");
+  const [gameRun, setGameRun] = useState(0);
   const [score, setScore] = useState(0);
   const [drunk, setDrunk] = useState(0);
   const [remaining, setRemaining] = useState(GAME_SECONDS);
 
   const startGame = useCallback(() => {
+    Object.values(audioRefs.current).forEach((audio) => {
+      try { audio.pause(); audio.currentTime = 0; } catch {}
+    });
     setScore(0);
     setDrunk(0);
     setRemaining(GAME_SECONDS);
+    setGameRun((run) => run + 1);
     setScreen("playing");
     const music = audioRefs.current.music;
     if (music) {
@@ -157,6 +161,9 @@ export default function BarGame() {
     let elapsed = 0;
     let spawnClock = 0;
     let last = performance.now();
+    const startedAt = performance.now();
+    let animationFrame = 0;
+    let stopped = false;
     let localScore = 0;
     let localDrunk = 0;
     let frameClock = 0;
@@ -374,12 +381,13 @@ export default function BarGame() {
     };
 
     const render = (now: number) => {
-      const dt = Math.min((now - last) / 1000, 0.04);
+      if (stopped) return;
+      const dt = Math.max(0, Math.min((now - last) / 1000, 0.04));
       last = now;
-      elapsed += dt;
+      elapsed = Math.max(0, (now - startedAt) / 1000);
       spawnClock += dt;
       frameClock += dt;
-      const secondsLeft = Math.max(0, GAME_SECONDS - elapsed);
+      const secondsLeft = Math.max(0, Math.min(GAME_SECONDS, GAME_SECONDS - elapsed));
       setRemaining(Math.ceil(secondsLeft));
 
       const intoxication = localDrunk / 100;
@@ -455,11 +463,12 @@ export default function BarGame() {
         setScreen("finished");
         return;
       }
-      rafRef.current = requestAnimationFrame(render);
+      animationFrame = requestAnimationFrame(render);
     };
-    rafRef.current = requestAnimationFrame(render);
+    animationFrame = requestAnimationFrame(render);
     return () => {
-      cancelAnimationFrame(rafRef.current);
+      stopped = true;
+      cancelAnimationFrame(animationFrame);
       canvas.removeEventListener("pointerdown", pointerDown);
       canvas.removeEventListener("pointermove", pointerMove);
       canvas.removeEventListener("pointerup", pointerUp);
@@ -468,7 +477,7 @@ export default function BarGame() {
       window.removeEventListener("keyup", keyUp);
       window.removeEventListener("resize", resize);
     };
-  }, [screen]);
+  }, [screen, gameRun]);
 
   return (
     <main
