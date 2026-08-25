@@ -4,7 +4,7 @@ import { Play, RotateCcw, Wine } from "lucide-react";
 type Screen = "start" | "playing" | "finished";
 type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number; variant: number };
 
-const GAME_SECONDS = 45;
+const GAME_SECONDS = 30;
 const ITEM_EFFECT = { water: -10, medicine: -16, glucose: -22 } as const;
 
 export default function BarGame() {
