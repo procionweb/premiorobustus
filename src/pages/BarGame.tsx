@@ -5,7 +5,7 @@ type Screen = "start" | "playing" | "finished";
 type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number; variant: number };
 
 const GAME_SECONDS = 45;
-const ITEM_EFFECT = { drink: 9, water: -10, medicine: -16, glucose: -22 } as const;
+const ITEM_EFFECT = { water: -10, medicine: -16, glucose: -22 } as const;
 
 export default function BarGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -16,6 +16,7 @@ export default function BarGame() {
   const jacksonSpriteRef = useRef<HTMLImageElement | null>(null);
   const jacksonFramesRef = useRef<HTMLCanvasElement[]>([]);
   const bottleFramesRef = useRef<HTMLImageElement[]>([]);
+  const remedyImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const [screen, setScreen] = useState<Screen>("start");
@@ -142,6 +143,16 @@ export default function BarGame() {
       image.src = `/bar-game/bottles/${filename}`;
       bottleFramesRef.current[index] = image;
     });
+    const remedies = {
+      water: "/bar-game/remedies/agua.png",
+      medicine: "/bar-game/remedies/eno.png",
+      glucose: "/bar-game/remedies/engov.png",
+    };
+    Object.entries(remedies).forEach(([key, src]) => {
+      const image = new Image();
+      image.src = src;
+      remedyImagesRef.current[key] = image;
+    });
     const audio = {
       cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
       music: new Audio("/bar-game/audio/musica-fundo.mp3"),
@@ -242,6 +253,16 @@ export default function BarGame() {
       ctx.rotate(item.spin);
       ctx.strokeStyle = "rgba(255,255,255,.8)";
       ctx.lineWidth = 2;
+      const drawRemedy = (image: HTMLImageElement | undefined, maxWidth: number, maxHeight: number) => {
+        if (!image?.complete || !image.naturalWidth) return;
+        const scale = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+        const drawW = image.naturalWidth * scale;
+        const drawH = image.naturalHeight * scale;
+        ctx.shadowColor = "rgba(0,0,0,.35)";
+        ctx.shadowBlur = 7;
+        ctx.shadowOffsetY = 4;
+        ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
+      };
       if (item.kind === "drink") {
         const bottle = bottleFramesRef.current[item.variant % 9];
         if (bottle) {
@@ -258,33 +279,11 @@ export default function BarGame() {
           ctx.fill();
         }
       } else if (item.kind === "medicine") {
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.roundRect(-16, -9, 32, 18, 9);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, -8, 1.5, 16);
+        drawRemedy(remedyImagesRef.current.medicine, 54, 62);
       } else if (item.kind === "glucose") {
-        ctx.fillStyle = "#f8fafc";
-        ctx.beginPath();
-        ctx.roundRect(-13, -18, 26, 36, 7);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = "#22c55e";
-        ctx.fillRect(-6, -7, 12, 14);
-        ctx.fillStyle = "white";
-        ctx.fillRect(-10, -24, 20, 7);
+        drawRemedy(remedyImagesRef.current.glucose, 82, 48);
       } else {
-        ctx.fillStyle = item.kind === "water" ? "#38bdf8" : "#e76f51";
-        ctx.beginPath();
-        ctx.roundRect(-11, -20, 22, 40, 6);
-        ctx.fill();
-        ctx.stroke();
-        ctx.fillStyle = item.kind === "water" ? "#e0f2fe" : "#d8b36c";
-        ctx.fillRect(-6, -29, 12, 11);
-        ctx.fillStyle = "rgba(255,255,255,.75)";
-        ctx.fillRect(-6, -3, 12, 10);
+        drawRemedy(remedyImagesRef.current.water, 38, 68);
       }
       ctx.restore();
     };
@@ -456,7 +455,10 @@ export default function BarGame() {
         if (item.y > playerY - playerHeight && item.y < playerY && Math.abs(item.x - playerX) < 82) {
           items.splice(i, 1);
           localScore += item.kind === "drink" ? 10 : 5;
-          localDrunk = Math.max(0, Math.min(100, localDrunk + ITEM_EFFECT[item.kind]));
+          const drunkChange = item.kind === "drink"
+            ? (item.variant % 2 === 0 ? 5 : 10)
+            : ITEM_EFFECT[item.kind];
+          localDrunk = Math.max(0, Math.min(100, localDrunk + drunkChange));
           if (item.kind === "drink") {
             celebrateUntil = elapsed + 1.15;
             playAudio("drink");
