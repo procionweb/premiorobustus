@@ -35,7 +35,6 @@ export default function BarGame() {
     const poses = {
       forward: "/bar-game/personagem-tombando-frente.png",
       backward: "/bar-game/personagem-tombando-tras.png",
-      fallen: "/bar-game/personagem-caido.png",
     };
     Object.entries(poses).forEach(([key, src]) => {
       const image = new Image();
@@ -158,26 +157,22 @@ export default function BarGame() {
       ctx.translate(0, y);
       ctx.rotate(drunkRock);
 
-      if (localDrunk >= 88) {
-        const pose = drunkPoseRefs.current.fallen;
-        const drawW = Math.min(width * 0.55, 300);
+      if (localDrunk >= 68) {
+        const poseKey = Math.sin(elapsed * 1.65) >= 0 ? "forward" : "backward";
+        const pose = drunkPoseRefs.current[poseKey];
+        const drawW = Math.min(width * 0.58, 340);
         const drawH = drawW * (pose.naturalHeight / pose.naturalWidth);
-        ctx.drawImage(pose, -drawW / 2, -drawH * 0.72, drawW, drawH);
-      } else if (localDrunk >= 68) {
-        const pose = drunkPoseRefs.current.forward;
-        const drawW = Math.min(width * 0.46, 260);
-        const drawH = drawW * (pose.naturalHeight / pose.naturalWidth);
-        ctx.drawImage(pose, -drawW / 2, -drawH * 0.78, drawW, drawH);
+        ctx.drawImage(pose, -drawW / 2, -drawH * 0.8, drawW, drawH);
       } else if (localDrunk >= 45) {
         const pose = drunkPoseRefs.current.backward;
-        const drawW = Math.min(width * 0.43, 245);
+        const drawW = Math.min(width * 0.54, 320);
         const drawH = drawW * (pose.naturalHeight / pose.naturalWidth);
         ctx.drawImage(pose, -drawW / 2, -drawH * 0.82, drawW, drawH);
       } else {
         const cellW = sprite.naturalWidth / 5;
         const cellH = sprite.naturalHeight / 2;
         const frame = moving ? 1 + (Math.floor(frameClock / 0.14) % 3) : 0;
-        const drawH = Math.min(height * 0.34, 285);
+        const drawH = Math.min(height * 0.48, 390);
         const drawW = drawH * (cellW / cellH);
         ctx.drawImage(sprite, frame * cellW, 0, cellW, cellH, -drawW / 2, -drawH, drawW, drawH);
       }
