@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">RobustUS</string>
-    <string name="title_activity_main">RobustUS</string>
-    <string name="package_name">br.com.robustus.premio</string>
-    <string name="custom_url_scheme">br.com.robustus.premio</string>
+    <string name="app_name">Bhaskar</string>
+    <string name="title_activity_main">Bhaskar</string>
+    <string name="package_name">br.com.procion.bhaskar</string>
+    <string name="custom_url_scheme">br.com.procion.bhaskar</string>
 </resources>

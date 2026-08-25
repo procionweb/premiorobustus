@@ -39,6 +39,7 @@ import AdminRelatorioOffline from './pages/AdminRelatorioOffline';
 import { OFFLINE_MEMORY_PRODUCTS } from './pages/tablet-offline/offlineAssets';
 import { MobileOfflineAuth } from './components/auth/MobileOfflineAuth';
 import { installMobileSync, setCurrentParticipantId } from './lib/mobileOfflineDb';
+import { Capacitor } from '@capacitor/core';
 
 const isMobileView = () =>
   typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
@@ -764,7 +765,7 @@ const App = () => {
   return (
     <BrowserRouter>
         <Routes>
-          <Route path="/" element={<GameContent />} />
+          <Route path="/" element={Capacitor.isNativePlatform() ? <BarGame /> : <GameContent />} />
           <Route path="/validar-brinde" element={<AdminScreen />} />
           <Route path="/admin/relatorio-offline" element={<AdminRelatorioOffline />} />
           <Route path="/cachorro-racao" element={<DogFoodGame />} />

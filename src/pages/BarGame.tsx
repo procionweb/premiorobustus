@@ -56,14 +56,11 @@ export default function BarGame() {
       image.src = src;
       drunkPoseRefs.current[key] = image;
     });
-    const people = {
-      woman: "/bar-game/figurantes-mulher.png",
-      men: "/bar-game/figurantes-homens.png",
-    };
-    const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1) => {
+    const people = [1, 2, 3, 4].map((number) => `/bar-game/figurante-${number}.png`);
+    const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1, rows = 2) => {
       const baseCellW = image.naturalWidth / columns;
       const cellW = Math.floor(baseCellW * widthScale);
-      const cellH = Math.floor(image.naturalHeight / 2);
+      const cellH = Math.floor(image.naturalHeight / rows);
       const sourceX = Math.max(0, Math.min(image.naturalWidth - cellW, column * baseCellW + (baseCellW - cellW) / 2));
       const frame = document.createElement("canvas");
       frame.width = cellW;
@@ -111,20 +108,13 @@ export default function BarGame() {
       frameCtx.putImageData(pixels, 0, 0);
       return frame;
     };
-    Object.entries(people).forEach(([key, src]) => {
+    people.forEach((src, index) => {
       const image = new Image();
       image.src = src;
-      backgroundPeopleRefs.current[key] = image;
+      backgroundPeopleRefs.current[`person${index}`] = image;
       image.onload = () => {
-        if (key === "woman") {
-          backgroundPeopleFrames.current.womanIdle = isolatePerson(image, 1, 3, 0);
-          backgroundPeopleFrames.current.womanCheer = isolatePerson(image, 1, 3, 1);
-        } else {
-          backgroundPeopleFrames.current.manLeftIdle = isolatePerson(image, 0, 2, 0);
-          backgroundPeopleFrames.current.manLeftCheer = isolatePerson(image, 0, 2, 1);
-          backgroundPeopleFrames.current.manRightIdle = isolatePerson(image, 1, 2, 0);
-          backgroundPeopleFrames.current.manRightCheer = isolatePerson(image, 1, 2, 1);
-        }
+        backgroundPeopleFrames.current[`person${index}Idle`] = isolatePerson(image, 0, 2, 0, 1, 1);
+        backgroundPeopleFrames.current[`person${index}Cheer`] = isolatePerson(image, 1, 2, 0, 1, 1);
       };
     });
     const jackson = new Image();
@@ -293,7 +283,7 @@ export default function BarGame() {
       x: number,
     ) => {
       if (!frame) return;
-      const drawH = Math.min(height * 0.24, 190);
+      const drawH = Math.min(height * 0.205, 168);
       const drawW = drawH * (frame.width / frame.height);
       const floorY = height * 0.47;
       ctx.save();
@@ -304,9 +294,9 @@ export default function BarGame() {
 
     const drawBackgroundPeople = (celebrating: boolean) => {
       const suffix = celebrating ? "Cheer" : "Idle";
-      drawBackgroundPerson(backgroundPeopleFrames.current[`manLeft${suffix}`], width * 0.2);
-      drawBackgroundPerson(backgroundPeopleFrames.current[`woman${suffix}`], width * 0.5);
-      drawBackgroundPerson(backgroundPeopleFrames.current[`manRight${suffix}`], width * 0.8);
+      [0.14, 0.38, 0.62, 0.86].forEach((position, index) => {
+        drawBackgroundPerson(backgroundPeopleFrames.current[`person${index}${suffix}`], width * position);
+      });
     };
 
     const drawJackson = () => {
@@ -535,16 +525,32 @@ export default function BarGame() {
         </div>
       )}
 
-      {screen !== "playing" && (
+      {screen === "start" && (
+        <section
+          className="absolute inset-0 z-20 bg-cover bg-center text-center"
+          style={{ backgroundImage: "url('/bar-game/home-background.jpg')" }}
+        >
+          <div className="absolute inset-0 bg-black/20" />
+          <img
+            src="/bar-game/procion-logo.png"
+            alt="Procion Systems"
+            className="absolute right-5 top-[max(20px,env(safe-area-inset-top))] z-10 w-[clamp(150px,38vw,235px)] object-contain drop-shadow-[0_3px_8px_rgba(0,0,0,0.85)]"
+          />
+          <button onClick={startGame} className="absolute bottom-[max(42px,calc(env(safe-area-inset-bottom)+28px))] left-1/2 z-10 flex min-h-14 -translate-x-1/2 items-center gap-3 rounded-md bg-orange-500 px-10 py-4 text-xl font-black uppercase shadow-[0_6px_0_#9a3412,0_8px_24px_rgba(0,0,0,0.55)] active:translate-y-1 active:shadow-none">
+            <Play className="h-6 w-6 fill-current" />
+            Jogar
+          </button>
+        </section>
+      )}
+
+      {screen === "finished" && (
         <section className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 px-6 text-center backdrop-blur-[2px]">
           <Wine className="mb-4 h-14 w-14 text-amber-400" />
           <h1 className="text-4xl font-black uppercase leading-none sm:text-6xl">Desafio do Bar</h1>
-          <p className="mt-3 max-w-md text-base font-semibold text-white/85 sm:text-xl">
-            {screen === "start" ? "Pegue as bebidas e tente manter o controle." : `Fim de jogo! Você marcou ${score} pontos.`}
-          </p>
+          <p className="mt-3 max-w-md text-base font-semibold text-white/85 sm:text-xl">Fim de jogo! Você marcou {score} pontos.</p>
           <button onClick={startGame} className="mt-8 flex min-h-14 items-center gap-3 rounded-md bg-orange-500 px-9 py-4 text-xl font-black uppercase shadow-[0_6px_0_#9a3412] active:translate-y-1 active:shadow-none">
-            {screen === "start" ? <Play className="h-6 w-6 fill-current" /> : <RotateCcw className="h-6 w-6" />}
-            {screen === "start" ? "Jogar" : "Jogar novamente"}
+            <RotateCcw className="h-6 w-6" />
+            Jogar novamente
           </button>
         </section>
       )}

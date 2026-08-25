@@ -1,11 +1,11 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "br.com.robustus.premio",
-  appName: "Premio RobustUS",
+  appId: "br.com.procion.bhaskar",
+  appName: "Bhaskar",
   webDir: "dist",
   android: {
-    backgroundColor: "#0047ab",
+    backgroundColor: "#090502",
   },
 };
 
