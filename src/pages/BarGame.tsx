@@ -13,6 +13,8 @@ export default function BarGame() {
   const drunkPoseRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundPeopleRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundPeopleFrames = useRef<Record<string, HTMLCanvasElement>>({});
+  const jacksonSpriteRef = useRef<HTMLImageElement | null>(null);
+  const jacksonFramesRef = useRef<HTMLCanvasElement[]>([]);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const rafRef = useRef(0);
@@ -117,6 +119,12 @@ export default function BarGame() {
         }
       };
     });
+    const jackson = new Image();
+    jackson.src = "/bar-game/jackson-sprites.png";
+    jacksonSpriteRef.current = jackson;
+    jackson.onload = () => {
+      jacksonFramesRef.current = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0));
+    };
     const audio = {
       cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
       music: new Audio("/bar-game/audio/musica-fundo.mp3"),
@@ -125,7 +133,7 @@ export default function BarGame() {
     };
     audio.music.loop = true;
     audio.music.volume = 0.18;
-    audio.cheer.volume = 0.34;
+    audio.cheer.volume = 0.2;
     audio.burp.volume = 0.95;
     audio.drink.volume = 0.78;
     Object.values(audio).forEach((item) => { item.preload = "auto"; });
@@ -267,6 +275,63 @@ export default function BarGame() {
       drawBackgroundPerson(backgroundPeopleFrames.current[`manRight${suffix}`], width * 0.8);
     };
 
+    const drawJackson = () => {
+      const sprite = jacksonSpriteRef.current;
+      if (!sprite?.complete || !sprite.naturalWidth) return;
+      const frames = jacksonFramesRef.current;
+      if (frames.length !== 4) return;
+      const halfTrip = 8.5;
+      const cycle = elapsed % (halfTrip * 2);
+      const goingRight = cycle < halfTrip;
+      const progress = goingRight ? cycle / halfTrip : (cycle - halfTrip) / halfTrip;
+      const drawH = Math.min(height * 0.28, 215);
+      const drawW = drawH * (frames[0].width / frames[0].height);
+      const startX = -drawW * 0.7;
+      const endX = width + drawW * 0.7;
+      const x = goingRight
+        ? startX + (endX - startX) * progress
+        : endX - (endX - startX) * progress;
+      const floorY = height * 0.67;
+      const walkingFrames = [1, 2, 3, 4];
+      const frameIndex = Math.floor(frameClock / 0.16) % walkingFrames.length;
+
+      ctx.save();
+      ctx.translate(x, 0);
+      if (!goingRight) ctx.scale(-1, 1);
+      ctx.drawImage(frames[frameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
+      ctx.restore();
+
+      const centerDistance = Math.abs(x - width / 2);
+      const bubbleAlpha = Math.max(0, Math.min(1, 1 - centerDistance / (width * 0.2)));
+      if (bubbleAlpha > 0) {
+        const bubbleW = Math.min(142, width * 0.38);
+        const bubbleH = 42;
+        const bubbleX = Math.max(8, Math.min(width - bubbleW - 8, x - bubbleW / 2));
+        const bubbleY = Math.max(76, floorY - drawH - 48);
+        ctx.save();
+        ctx.globalAlpha = bubbleAlpha;
+        ctx.fillStyle = "white";
+        ctx.strokeStyle = "#f97316";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 12);
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x - 8, bubbleY + bubbleH);
+        ctx.lineTo(x + 2, bubbleY + bubbleH + 12);
+        ctx.lineTo(x + 12, bubbleY + bubbleH);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#172033";
+        ctx.font = "900 17px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Vai Jackson!!", bubbleX + bubbleW / 2, bubbleY + bubbleH / 2);
+        ctx.restore();
+      }
+    };
+
     const drawPlayer = (x: number, y: number, moving: boolean) => {
       const sprite = spriteRef.current;
       if (!sprite?.complete) return;
@@ -375,6 +440,7 @@ export default function BarGame() {
       const bg = backgroundRef.current;
       if (bg?.complete) ctx.drawImage(bg, 0, 0, width, height);
       drawBackgroundPeople(elapsed < celebrateUntil);
+      drawJackson();
       ctx.save();
       const sway = Math.sin(elapsed * 2.4) * intoxication * 8;
       ctx.translate(sway, Math.cos(elapsed * 1.8) * intoxication * 3);
