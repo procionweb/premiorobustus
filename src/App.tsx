@@ -34,6 +34,7 @@ import OfflineRegister from './pages/tablet-offline/OfflineRegister';
 
 import OfflineCatchGame from './pages/tablet-offline/OfflineCatchGame';
 import OfflineValidatePrize from './pages/tablet-offline/OfflineValidatePrize';
+import BarGame from './pages/BarGame';
 import AdminRelatorioOffline from './pages/AdminRelatorioOffline';
 import { OFFLINE_MEMORY_PRODUCTS } from './pages/tablet-offline/offlineAssets';
 import { MobileOfflineAuth } from './components/auth/MobileOfflineAuth';
@@ -775,6 +776,7 @@ const App = () => {
           
           <Route path="/tablet-offline/jogo-cesta" element={<OfflineCatchGame />} />
           <Route path="/tablet-offline/validar-brinde" element={<OfflineValidatePrize />} />
+          <Route path="/bar-game" element={<BarGame />} />
         </Routes>
       <Toaster position="top-center" richColors />
     </BrowserRouter>
