@@ -12,7 +12,9 @@ export default function BarGame() {
   const spriteRef = useRef<HTMLImageElement | null>(null);
   const drunkPoseRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundPeopleRefs = useRef<Record<string, HTMLImageElement>>({});
+  const backgroundPeopleFrames = useRef<Record<string, HTMLCanvasElement>>({});
   const backgroundRef = useRef<HTMLImageElement | null>(null);
+  const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const rafRef = useRef(0);
   const [screen, setScreen] = useState<Screen>("start");
   const [score, setScore] = useState(0);
@@ -24,6 +26,11 @@ export default function BarGame() {
     setDrunk(0);
     setRemaining(GAME_SECONDS);
     setScreen("playing");
+    const music = audioRefs.current.music;
+    if (music) {
+      music.currentTime = 0;
+      void music.play().catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -45,11 +52,85 @@ export default function BarGame() {
       woman: "/bar-game/figurantes-mulher.png",
       men: "/bar-game/figurantes-homens.png",
     };
+    const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number) => {
+      const cellW = Math.floor(image.naturalWidth / columns);
+      const cellH = Math.floor(image.naturalHeight / 2);
+      const frame = document.createElement("canvas");
+      frame.width = cellW;
+      frame.height = cellH;
+      const frameCtx = frame.getContext("2d", { willReadFrequently: true });
+      if (!frameCtx) return frame;
+      frameCtx.drawImage(image, column * cellW, row * cellH, cellW, cellH, 0, 0, cellW, cellH);
+      const pixels = frameCtx.getImageData(0, 0, cellW, cellH);
+      const total = cellW * cellH;
+      const labels = new Int32Array(total);
+      const queue = new Int32Array(total);
+      let label = 0;
+      let largestLabel = 0;
+      let largestSize = 0;
+      for (let start = 0; start < total; start++) {
+        if (labels[start] || pixels.data[start * 4 + 3] < 24) continue;
+        label++;
+        let head = 0;
+        let tail = 0;
+        let size = 0;
+        labels[start] = label;
+        queue[tail++] = start;
+        while (head < tail) {
+          const index = queue[head++];
+          size++;
+          const x = index % cellW;
+          const visit = (next: number) => {
+            if (next < 0 || next >= total || labels[next] || pixels.data[next * 4 + 3] < 24) return;
+            labels[next] = label;
+            queue[tail++] = next;
+          };
+          if (x > 0) visit(index - 1);
+          if (x < cellW - 1) visit(index + 1);
+          visit(index - cellW);
+          visit(index + cellW);
+        }
+        if (size > largestSize) {
+          largestSize = size;
+          largestLabel = label;
+        }
+      }
+      for (let index = 0; index < total; index++) {
+        if (labels[index] !== largestLabel) pixels.data[index * 4 + 3] = 0;
+      }
+      frameCtx.putImageData(pixels, 0, 0);
+      return frame;
+    };
     Object.entries(people).forEach(([key, src]) => {
       const image = new Image();
       image.src = src;
       backgroundPeopleRefs.current[key] = image;
+      image.onload = () => {
+        if (key === "woman") {
+          backgroundPeopleFrames.current.womanIdle = isolatePerson(image, 1, 3, 0);
+          backgroundPeopleFrames.current.womanCheer = isolatePerson(image, 1, 3, 1);
+        } else {
+          backgroundPeopleFrames.current.manLeftIdle = isolatePerson(image, 0, 2, 0);
+          backgroundPeopleFrames.current.manLeftCheer = isolatePerson(image, 0, 2, 1);
+          backgroundPeopleFrames.current.manRightIdle = isolatePerson(image, 1, 2, 0);
+          backgroundPeopleFrames.current.manRightCheer = isolatePerson(image, 1, 2, 1);
+        }
+      };
     });
+    const audio = {
+      cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
+      music: new Audio("/bar-game/audio/musica-fundo.mp3"),
+      burp: new Audio("/bar-game/audio/arroto.mp3"),
+      drink: new Audio("/bar-game/audio/bebida.mp3"),
+    };
+    audio.music.loop = true;
+    audio.music.volume = 0.18;
+    audio.cheer.volume = 0.7;
+    audio.burp.volume = 0.72;
+    audio.drink.volume = 0.78;
+    Object.values(audio).forEach((item) => { item.preload = "auto"; });
+    audioRefs.current = audio;
+    return () => Object.values(audio).forEach((item) => item.pause());
   }, []);
 
   useEffect(() => {
@@ -73,8 +154,15 @@ export default function BarGame() {
     let velocityX = 0;
     let dragging = false;
     let celebrateUntil = 0;
+    let nextBurpAt = 7 + Math.random() * 6;
     const keys = new Set<string>();
     const items: FallingItem[] = [];
+    const playAudio = (key: "cheer" | "burp" | "drink") => {
+      const audio = audioRefs.current[key];
+      if (!audio) return;
+      try { audio.pause(); audio.currentTime = 0; } catch {}
+      void audio.play().catch(() => {});
+    };
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -158,29 +246,24 @@ export default function BarGame() {
     };
 
     const drawBackgroundPerson = (
-      image: HTMLImageElement | undefined,
-      column: number,
-      columns: number,
+      frame: HTMLCanvasElement | undefined,
       x: number,
-      celebrating: boolean,
     ) => {
-      if (!image?.complete || !image.naturalWidth) return;
-      const cellW = image.naturalWidth / columns;
-      const cellH = image.naturalHeight / 2;
-      const sourceY = celebrating ? cellH : 0;
+      if (!frame) return;
       const drawH = Math.min(height * 0.24, 190);
-      const drawW = drawH * (cellW / cellH);
+      const drawW = drawH * (frame.width / frame.height);
       const floorY = height * 0.47;
       ctx.save();
       ctx.globalAlpha = 0.96;
-      ctx.drawImage(image, column * cellW, sourceY, cellW, cellH, x - drawW / 2, floorY - drawH, drawW, drawH);
+      ctx.drawImage(frame, x - drawW / 2, floorY - drawH, drawW, drawH);
       ctx.restore();
     };
 
     const drawBackgroundPeople = (celebrating: boolean) => {
-      drawBackgroundPerson(backgroundPeopleRefs.current.men, 0, 2, width * 0.2, celebrating);
-      drawBackgroundPerson(backgroundPeopleRefs.current.woman, 1, 3, width * 0.5, celebrating);
-      drawBackgroundPerson(backgroundPeopleRefs.current.men, 1, 2, width * 0.8, celebrating);
+      const suffix = celebrating ? "Cheer" : "Idle";
+      drawBackgroundPerson(backgroundPeopleFrames.current[`manLeft${suffix}`], width * 0.2);
+      drawBackgroundPerson(backgroundPeopleFrames.current[`woman${suffix}`], width * 0.5);
+      drawBackgroundPerson(backgroundPeopleFrames.current[`manRight${suffix}`], width * 0.8);
     };
 
     const drawPlayer = (x: number, y: number, moving: boolean) => {
@@ -193,23 +276,31 @@ export default function BarGame() {
       ctx.translate(0, y);
       ctx.rotate(drunkRock);
 
-      if (localDrunk >= 68) {
-        const pose = drunkPoseRefs.current.forward;
-        const drawH = Math.min(height * 0.48, 390);
-        const drawW = drawH * (pose.naturalWidth / pose.naturalHeight);
-        ctx.drawImage(pose, -drawW / 2, -drawH * 0.8, drawW, drawH);
-      } else if (localDrunk >= 45) {
-        const pose = drunkPoseRefs.current.forward;
-        const drawH = Math.min(height * 0.48, 390);
-        const drawW = drawH * (pose.naturalWidth / pose.naturalHeight);
-        ctx.drawImage(pose, -drawW / 2, -drawH * 0.82, drawW, drawH);
-      } else {
+      const drawStanding = (alpha: number) => {
         const cellW = sprite.naturalWidth / 5;
         const cellH = sprite.naturalHeight / 2;
         const frame = moving ? 1 + (Math.floor(frameClock / 0.14) % 3) : 0;
         const drawH = Math.min(height * 0.48, 390);
         const drawW = drawH * (cellW / cellH);
+        ctx.globalAlpha = alpha;
         ctx.drawImage(sprite, frame * cellW, 0, cellW, cellH, -drawW / 2, -drawH, drawW, drawH);
+      };
+      const drawLeaning = (alpha: number) => {
+        const pose = drunkPoseRefs.current.forward;
+        if (!pose?.complete || !pose.naturalWidth) return;
+        const drawH = Math.min(height * 0.48, 390);
+        const drawW = drawH * (pose.naturalWidth / pose.naturalHeight);
+        ctx.globalAlpha = alpha;
+        ctx.drawImage(pose, -drawW / 2, -drawH, drawW, drawH);
+      };
+
+      if (localDrunk >= 45) {
+        const wave = (Math.sin(elapsed * 2.15) + 1) / 2;
+        const blend = wave * wave * (3 - 2 * wave);
+        drawStanding(1 - blend);
+        drawLeaning(blend);
+      } else {
+        drawStanding(1);
       }
       ctx.restore();
     };
@@ -224,6 +315,10 @@ export default function BarGame() {
       setRemaining(Math.ceil(secondsLeft));
 
       const intoxication = localDrunk / 100;
+      if (localDrunk >= 30 && elapsed >= nextBurpAt) {
+        playAudio("burp");
+        nextBurpAt = elapsed + 8 + Math.random() * 8;
+      }
       const previousX = playerX;
       const keyboardDirection = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
       if (keyboardDirection !== 0) {
@@ -251,15 +346,20 @@ export default function BarGame() {
       }
 
       const playerY = height - 22;
+      const playerHeight = Math.min(height * 0.48, 390);
       for (let i = items.length - 1; i >= 0; i--) {
         const item = items[i];
         item.y += item.speed * dt;
         item.spin += dt * 2;
-        if (item.y > playerY - 135 && item.y < playerY - 15 && Math.abs(item.x - playerX) < 52) {
+        if (item.y > playerY - playerHeight && item.y < playerY && Math.abs(item.x - playerX) < 82) {
           items.splice(i, 1);
           localScore += item.kind === "drink" ? 10 : 5;
           localDrunk = Math.max(0, Math.min(100, localDrunk + ITEM_EFFECT[item.kind]));
-          if (item.kind === "drink") celebrateUntil = elapsed + 1.15;
+          if (item.kind === "drink") {
+            celebrateUntil = elapsed + 1.15;
+            playAudio("drink");
+            playAudio("cheer");
+          }
           setScore(localScore);
           setDrunk(localDrunk);
         } else if (item.y > height + 40) {
@@ -279,6 +379,7 @@ export default function BarGame() {
       ctx.restore();
 
       if (secondsLeft <= 0) {
+        audioRefs.current.music?.pause();
         setScreen("finished");
         return;
       }
