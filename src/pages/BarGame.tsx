@@ -125,8 +125,8 @@ export default function BarGame() {
     };
     audio.music.loop = true;
     audio.music.volume = 0.18;
-    audio.cheer.volume = 0.7;
-    audio.burp.volume = 0.72;
+    audio.cheer.volume = 0.34;
+    audio.burp.volume = 0.95;
     audio.drink.volume = 0.78;
     Object.values(audio).forEach((item) => { item.preload = "auto"; });
     audioRefs.current = audio;
@@ -154,7 +154,8 @@ export default function BarGame() {
     let velocityX = 0;
     let dragging = false;
     let celebrateUntil = 0;
-    let nextBurpAt = 7 + Math.random() * 6;
+    let lastCheerAt = -3;
+    let nextBurpAt = 4 + Math.random() * 3;
     const keys = new Set<string>();
     const items: FallingItem[] = [];
     const playAudio = (key: "cheer" | "burp" | "drink") => {
@@ -317,7 +318,7 @@ export default function BarGame() {
       const intoxication = localDrunk / 100;
       if (localDrunk >= 30 && elapsed >= nextBurpAt) {
         playAudio("burp");
-        nextBurpAt = elapsed + 8 + Math.random() * 8;
+        nextBurpAt = elapsed + 4 + Math.random() * 5;
       }
       const previousX = playerX;
       const keyboardDirection = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
@@ -358,7 +359,10 @@ export default function BarGame() {
           if (item.kind === "drink") {
             celebrateUntil = elapsed + 1.15;
             playAudio("drink");
-            playAudio("cheer");
+            if (elapsed - lastCheerAt >= 3) {
+              playAudio("cheer");
+              lastCheerAt = elapsed;
+            }
           }
           setScore(localScore);
           setDrunk(localDrunk);
