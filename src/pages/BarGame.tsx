@@ -54,15 +54,17 @@ export default function BarGame() {
       woman: "/bar-game/figurantes-mulher.png",
       men: "/bar-game/figurantes-homens.png",
     };
-    const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number) => {
-      const cellW = Math.floor(image.naturalWidth / columns);
+    const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1) => {
+      const baseCellW = image.naturalWidth / columns;
+      const cellW = Math.floor(baseCellW * widthScale);
       const cellH = Math.floor(image.naturalHeight / 2);
+      const sourceX = Math.max(0, Math.min(image.naturalWidth - cellW, column * baseCellW + (baseCellW - cellW) / 2));
       const frame = document.createElement("canvas");
       frame.width = cellW;
       frame.height = cellH;
       const frameCtx = frame.getContext("2d", { willReadFrequently: true });
       if (!frameCtx) return frame;
-      frameCtx.drawImage(image, column * cellW, row * cellH, cellW, cellH, 0, 0, cellW, cellH);
+      frameCtx.drawImage(image, sourceX, row * cellH, cellW, cellH, 0, 0, cellW, cellH);
       const pixels = frameCtx.getImageData(0, 0, cellW, cellH);
       const total = cellW * cellH;
       const labels = new Int32Array(total);
@@ -123,7 +125,7 @@ export default function BarGame() {
     jackson.src = "/bar-game/jackson-sprites.png";
     jacksonSpriteRef.current = jackson;
     jackson.onload = () => {
-      jacksonFramesRef.current = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0));
+      jacksonFramesRef.current = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0, 1.42));
     };
     const audio = {
       cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
@@ -284,7 +286,7 @@ export default function BarGame() {
       const cycle = elapsed % (halfTrip * 2);
       const goingRight = cycle < halfTrip;
       const progress = goingRight ? cycle / halfTrip : (cycle - halfTrip) / halfTrip;
-      const drawH = Math.min(height * 0.28, 215);
+      const drawH = Math.min(height * 0.32, 260);
       const drawW = drawH * (frames[0].width / frames[0].height);
       const startX = -drawW * 0.7;
       const endX = width + drawW * 0.7;
