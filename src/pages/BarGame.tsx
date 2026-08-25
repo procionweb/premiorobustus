@@ -285,16 +285,18 @@ export default function BarGame() {
       if (!frame) return;
       const drawH = Math.min(height * 0.205, 168);
       const drawW = drawH * (frame.width / frame.height);
-      const floorY = height * 0.47;
+      const floorY = height * 0.415;
       ctx.save();
       ctx.globalAlpha = 0.96;
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(frame, x - drawW / 2, floorY - drawH, drawW, drawH);
       ctx.restore();
     };
 
     const drawBackgroundPeople = (celebrating: boolean) => {
       const suffix = celebrating ? "Cheer" : "Idle";
-      [0.14, 0.38, 0.62, 0.86].forEach((position, index) => {
+      [0.1, 0.36, 0.64, 0.9].forEach((position, index) => {
         drawBackgroundPerson(backgroundPeopleFrames.current[`person${index}${suffix}`], width * position);
       });
     };
@@ -505,7 +507,7 @@ export default function BarGame() {
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full"
-        style={{ filter: screen === "playing" ? `blur(${Math.max(0, drunk - 18) * 0.045}px) saturate(${1 + drunk * 0.004})` : undefined }}
+        style={{ filter: screen === "playing" ? `saturate(${1 + drunk * 0.003})` : undefined }}
       />
 
       {screen === "playing" && (
@@ -531,11 +533,6 @@ export default function BarGame() {
           style={{ backgroundImage: "url('/bar-game/home-background.jpg')" }}
         >
           <div className="absolute inset-0 bg-black/20" />
-          <img
-            src="/bar-game/procion-logo.png"
-            alt="Procion Systems"
-            className="absolute right-5 top-[max(20px,env(safe-area-inset-top))] z-10 w-[clamp(150px,38vw,235px)] object-contain drop-shadow-[0_3px_8px_rgba(0,0,0,0.85)]"
-          />
           <button onClick={startGame} className="absolute bottom-[max(42px,calc(env(safe-area-inset-bottom)+28px))] left-1/2 z-10 flex min-h-14 -translate-x-1/2 items-center gap-3 rounded-md bg-orange-500 px-10 py-4 text-xl font-black uppercase shadow-[0_6px_0_#9a3412,0_8px_24px_rgba(0,0,0,0.55)] active:translate-y-1 active:shadow-none">
             <Play className="h-6 w-6 fill-current" />
             Jogar
