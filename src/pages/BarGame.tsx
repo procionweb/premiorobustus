@@ -2,15 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Play, RotateCcw, Wine } from "lucide-react";
 
 type Screen = "start" | "playing" | "finished";
-type Bottle = { x: number; y: number; speed: number; kind: number; spin: number };
+type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number };
 
 const GAME_SECONDS = 45;
-const BOTTLE_COLORS = ["#e9c46a", "#2a9d8f", "#e76f51", "#8ecae6"];
+const ITEM_EFFECT = { drink: 9, water: -10, medicine: -16, glucose: -22 } as const;
 
 export default function BarGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spriteRef = useRef<HTMLImageElement | null>(null);
-  const cleanSpriteRef = useRef<HTMLCanvasElement | null>(null);
+  const drunkPoseRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const rafRef = useRef(0);
   const [screen, setScreen] = useState<Screen>("start");
@@ -30,58 +30,18 @@ export default function BarGame() {
     bg.src = "/bar-game/bar-background.png";
     backgroundRef.current = bg;
     const sprite = new Image();
-    sprite.src = "/bar-game/personagem-sprites.png";
+    sprite.src = "/bar-game/personagem-sprites-transparente.png";
     spriteRef.current = sprite;
-    sprite.onload = () => {
-      const clean = document.createElement("canvas");
-      clean.width = sprite.naturalWidth;
-      clean.height = sprite.naturalHeight;
-      const cleanCtx = clean.getContext("2d", { willReadFrequently: true });
-      if (!cleanCtx) return;
-      cleanCtx.drawImage(sprite, 0, 0);
-      const image = cleanCtx.getImageData(0, 0, clean.width, clean.height);
-      const { data } = image;
-      const total = clean.width * clean.height;
-      const visited = new Uint8Array(total);
-      const queue = new Int32Array(total);
-      let head = 0;
-      let tail = 0;
-
-      const isBackdrop = (index: number) => {
-        const offset = index * 4;
-        const r = data[offset];
-        const g = data[offset + 1];
-        const b = data[offset + 2];
-        return Math.min(r, g, b) > 218 && Math.max(r, g, b) - Math.min(r, g, b) < 18;
-      };
-      const enqueue = (index: number) => {
-        if (index < 0 || index >= total || visited[index] || !isBackdrop(index)) return;
-        visited[index] = 1;
-        queue[tail++] = index;
-      };
-
-      for (let x = 0; x < clean.width; x++) {
-        enqueue(x);
-        enqueue((clean.height - 1) * clean.width + x);
-      }
-      for (let y = 0; y < clean.height; y++) {
-        enqueue(y * clean.width);
-        enqueue(y * clean.width + clean.width - 1);
-      }
-      while (head < tail) {
-        const index = queue[head++];
-        const x = index % clean.width;
-        if (x > 0) enqueue(index - 1);
-        if (x < clean.width - 1) enqueue(index + 1);
-        enqueue(index - clean.width);
-        enqueue(index + clean.width);
-      }
-      for (let index = 0; index < total; index++) {
-        if (visited[index]) data[index * 4 + 3] = 0;
-      }
-      cleanCtx.putImageData(image, 0, 0);
-      cleanSpriteRef.current = clean;
+    const poses = {
+      forward: "/bar-game/personagem-tombando-frente.png",
+      backward: "/bar-game/personagem-tombando-tras.png",
+      fallen: "/bar-game/personagem-caido.png",
     };
+    Object.entries(poses).forEach(([key, src]) => {
+      const image = new Image();
+      image.src = src;
+      drunkPoseRefs.current[key] = image;
+    });
   }, []);
 
   useEffect(() => {
@@ -102,7 +62,10 @@ export default function BarGame() {
     let localDrunk = 0;
     let frameClock = 0;
     let facing: "left" | "right" = "right";
-    const bottles: Bottle[] = [];
+    let velocityX = 0;
+    let dragging = false;
+    const keys = new Set<string>();
+    const items: FallingItem[] = [];
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -117,43 +80,107 @@ export default function BarGame() {
     resize();
     window.addEventListener("resize", resize);
 
-    const move = (event: PointerEvent) => {
+    const moveTarget = (event: PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
       targetX = Math.max(45, Math.min(width - 45, event.clientX - rect.left));
     };
-    canvas.addEventListener("pointerdown", move);
-    canvas.addEventListener("pointermove", move);
+    const pointerDown = (event: PointerEvent) => {
+      dragging = true;
+      canvas.setPointerCapture(event.pointerId);
+      moveTarget(event);
+    };
+    const pointerMove = (event: PointerEvent) => {
+      if (dragging || event.pointerType === "mouse") moveTarget(event);
+    };
+    const pointerUp = (event: PointerEvent) => {
+      dragging = false;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    };
+    const keyDown = (event: KeyboardEvent) => {
+      if (["ArrowLeft", "ArrowRight", "a", "A", "d", "D"].includes(event.key)) {
+        event.preventDefault();
+        keys.add(event.key.toLowerCase());
+      }
+    };
+    const keyUp = (event: KeyboardEvent) => keys.delete(event.key.toLowerCase());
+    canvas.addEventListener("pointerdown", pointerDown);
+    canvas.addEventListener("pointermove", pointerMove);
+    canvas.addEventListener("pointerup", pointerUp);
+    canvas.addEventListener("pointercancel", pointerUp);
+    window.addEventListener("keydown", keyDown);
+    window.addEventListener("keyup", keyUp);
 
-    const drawBottle = (b: Bottle) => {
+    const drawItem = (item: FallingItem) => {
       ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(b.spin);
-      ctx.fillStyle = BOTTLE_COLORS[b.kind];
+      ctx.translate(item.x, item.y);
+      ctx.rotate(item.spin);
       ctx.strokeStyle = "rgba(255,255,255,.8)";
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(-11, -20, 22, 40, 6);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = "#d8b36c";
-      ctx.fillRect(-6, -29, 12, 11);
-      ctx.fillStyle = "rgba(255,255,255,.65)";
-      ctx.fillRect(-6, -3, 12, 10);
+      if (item.kind === "medicine") {
+        ctx.fillStyle = "#ef4444";
+        ctx.beginPath();
+        ctx.roundRect(-16, -9, 32, 18, 9);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, -8, 1.5, 16);
+      } else if (item.kind === "glucose") {
+        ctx.fillStyle = "#f8fafc";
+        ctx.beginPath();
+        ctx.roundRect(-13, -18, 26, 36, 7);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#22c55e";
+        ctx.fillRect(-6, -7, 12, 14);
+        ctx.fillStyle = "white";
+        ctx.fillRect(-10, -24, 20, 7);
+      } else {
+        ctx.fillStyle = item.kind === "water" ? "#38bdf8" : "#e76f51";
+        ctx.beginPath();
+        ctx.roundRect(-11, -20, 22, 40, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = item.kind === "water" ? "#e0f2fe" : "#d8b36c";
+        ctx.fillRect(-6, -29, 12, 11);
+        ctx.fillStyle = "rgba(255,255,255,.75)";
+        ctx.fillRect(-6, -3, 12, 10);
+      }
       ctx.restore();
     };
 
     const drawPlayer = (x: number, y: number, moving: boolean) => {
-      const sprite = cleanSpriteRef.current;
-      if (!sprite) return;
-      const cellW = sprite.width / 5;
-      const cellH = sprite.height / 2;
-      const frame = moving ? 1 + (Math.floor(frameClock / 0.14) % 3) : 0;
-      const drawH = Math.min(height * 0.47, 360);
-      const drawW = drawH * (cellW / cellH);
+      const sprite = spriteRef.current;
+      if (!sprite?.complete) return;
       ctx.save();
       ctx.translate(x, 0);
       if (facing === "right") ctx.scale(-1, 1);
-      ctx.drawImage(sprite, frame * cellW, 0, cellW, cellH, -drawW / 2, y - drawH, drawW, drawH);
+      const drunkRock = Math.sin(elapsed * 3.1) * Math.min(0.09, localDrunk * 0.0009);
+      ctx.translate(0, y);
+      ctx.rotate(drunkRock);
+
+      if (localDrunk >= 88) {
+        const pose = drunkPoseRefs.current.fallen;
+        const drawW = Math.min(width * 0.55, 300);
+        const drawH = drawW * (pose.naturalHeight / pose.naturalWidth);
+        ctx.drawImage(pose, -drawW / 2, -drawH * 0.72, drawW, drawH);
+      } else if (localDrunk >= 68) {
+        const pose = drunkPoseRefs.current.forward;
+        const drawW = Math.min(width * 0.46, 260);
+        const drawH = drawW * (pose.naturalHeight / pose.naturalWidth);
+        ctx.drawImage(pose, -drawW / 2, -drawH * 0.78, drawW, drawH);
+      } else if (localDrunk >= 45) {
+        const pose = drunkPoseRefs.current.backward;
+        const drawW = Math.min(width * 0.43, 245);
+        const drawH = drawW * (pose.naturalHeight / pose.naturalWidth);
+        ctx.drawImage(pose, -drawW / 2, -drawH * 0.82, drawW, drawH);
+      } else {
+        const cellW = sprite.naturalWidth / 5;
+        const cellH = sprite.naturalHeight / 2;
+        const frame = moving ? 1 + (Math.floor(frameClock / 0.14) % 3) : 0;
+        const drawH = Math.min(height * 0.34, 285);
+        const drawW = drawH * (cellW / cellH);
+        ctx.drawImage(sprite, frame * cellW, 0, cellW, cellH, -drawW / 2, -drawH, drawW, drawH);
+      }
       ctx.restore();
     };
 
@@ -167,10 +194,19 @@ export default function BarGame() {
       setRemaining(Math.ceil(secondsLeft));
 
       const intoxication = localDrunk / 100;
-      const delayedTarget = targetX + Math.sin(elapsed * (3 + intoxication * 5)) * 42 * intoxication;
-      const response = Math.max(2.2, 11 - intoxication * 8);
       const previousX = playerX;
-      playerX += (delayedTarget - playerX) * Math.min(1, dt * response);
+      const keyboardDirection = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
+      if (keyboardDirection !== 0) {
+        targetX = Math.max(45, Math.min(width - 45, targetX + keyboardDirection * 330 * dt));
+      }
+      const delayedTarget = targetX + Math.sin(elapsed * (3 + intoxication * 5)) * 38 * intoxication;
+      const response = Math.max(2.4, 10 - intoxication * 7);
+      const desiredVelocity = (delayedTarget - playerX) * response;
+      const maxSpeed = Math.max(90, 520 - intoxication * 300);
+      const clampedVelocity = Math.max(-maxSpeed, Math.min(maxSpeed, desiredVelocity));
+      const acceleration = keyboardDirection !== 0 ? 12 : 8;
+      velocityX += (clampedVelocity - velocityX) * Math.min(1, dt * acceleration);
+      playerX += velocityX * dt;
       playerX = Math.max(42, Math.min(width - 42, playerX));
       const movement = playerX - previousX;
       if (movement > 0.2) facing = "right";
@@ -179,22 +215,24 @@ export default function BarGame() {
       const interval = Math.max(0.34, 0.72 - elapsed * 0.005);
       if (spawnClock >= interval) {
         spawnClock = 0;
-        bottles.push({ x: 30 + Math.random() * (width - 60), y: -35, speed: 150 + Math.random() * 95, kind: Math.floor(Math.random() * 4), spin: 0 });
+        const roll = Math.random();
+        const kind: FallingItem["kind"] = roll < 0.72 ? "drink" : roll < 0.83 ? "water" : roll < 0.92 ? "medicine" : "glucose";
+        items.push({ x: 30 + Math.random() * (width - 60), y: -35, speed: 150 + Math.random() * 95, kind, spin: 0 });
       }
 
       const playerY = height - 22;
-      for (let i = bottles.length - 1; i >= 0; i--) {
-        const b = bottles[i];
-        b.y += b.speed * dt;
-        b.spin += dt * 2;
-        if (b.y > playerY - 120 && b.y < playerY - 20 && Math.abs(b.x - playerX) < 45) {
-          bottles.splice(i, 1);
-          localScore += 10;
-          localDrunk = Math.min(100, localDrunk + 9);
+      for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i];
+        item.y += item.speed * dt;
+        item.spin += dt * 2;
+        if (item.y > playerY - 135 && item.y < playerY - 15 && Math.abs(item.x - playerX) < 52) {
+          items.splice(i, 1);
+          localScore += item.kind === "drink" ? 10 : 5;
+          localDrunk = Math.max(0, Math.min(100, localDrunk + ITEM_EFFECT[item.kind]));
           setScore(localScore);
           setDrunk(localDrunk);
-        } else if (b.y > height + 40) {
-          bottles.splice(i, 1);
+        } else if (item.y > height + 40) {
+          items.splice(i, 1);
         }
       }
 
@@ -204,7 +242,7 @@ export default function BarGame() {
       ctx.save();
       const sway = Math.sin(elapsed * 2.4) * intoxication * 8;
       ctx.translate(sway, Math.cos(elapsed * 1.8) * intoxication * 3);
-      bottles.forEach(drawBottle);
+      items.forEach(drawItem);
       drawPlayer(playerX, playerY, Math.abs(playerX - previousX) > 0.25);
       ctx.restore();
 
@@ -217,8 +255,12 @@ export default function BarGame() {
     rafRef.current = requestAnimationFrame(render);
     return () => {
       cancelAnimationFrame(rafRef.current);
-      canvas.removeEventListener("pointerdown", move);
-      canvas.removeEventListener("pointermove", move);
+      canvas.removeEventListener("pointerdown", pointerDown);
+      canvas.removeEventListener("pointermove", pointerMove);
+      canvas.removeEventListener("pointerup", pointerUp);
+      canvas.removeEventListener("pointercancel", pointerUp);
+      window.removeEventListener("keydown", keyDown);
+      window.removeEventListener("keyup", keyUp);
       window.removeEventListener("resize", resize);
     };
   }, [screen]);
