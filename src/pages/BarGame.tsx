@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Play, RotateCcw, Wine } from "lucide-react";
+import { Play } from "lucide-react";
 
-type Screen = "start" | "playing" | "finished";
+type Screen = "start" | "playing";
 type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number; variant: number };
 
 const GAME_SECONDS = 30;
@@ -479,8 +479,13 @@ export default function BarGame() {
       ctx.restore();
 
       if (secondsLeft <= 0) {
-        audioRefs.current.music?.pause();
-        setScreen("finished");
+        Object.values(audioRefs.current).forEach((audio) => {
+          try { audio.pause(); audio.currentTime = 0; } catch {}
+        });
+        setScore(0);
+        setDrunk(0);
+        setRemaining(GAME_SECONDS);
+        setScreen("start");
         return;
       }
       animationFrame = requestAnimationFrame(render);
@@ -540,17 +545,6 @@ export default function BarGame() {
         </section>
       )}
 
-      {screen === "finished" && (
-        <section className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/55 px-6 text-center backdrop-blur-[2px]">
-          <Wine className="mb-4 h-14 w-14 text-amber-400" />
-          <h1 className="text-4xl font-black uppercase leading-none sm:text-6xl">Desafio do Bar</h1>
-          <p className="mt-3 max-w-md text-base font-semibold text-white/85 sm:text-xl">Fim de jogo! Você marcou {score} pontos.</p>
-          <button onClick={startGame} className="mt-8 flex min-h-14 items-center gap-3 rounded-md bg-orange-500 px-9 py-4 text-xl font-black uppercase shadow-[0_6px_0_#9a3412] active:translate-y-1 active:shadow-none">
-            <RotateCcw className="h-6 w-6" />
-            Jogar novamente
-          </button>
-        </section>
-      )}
     </main>
   );
 }
