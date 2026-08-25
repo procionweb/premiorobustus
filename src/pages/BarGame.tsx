@@ -11,6 +11,7 @@ export default function BarGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spriteRef = useRef<HTMLImageElement | null>(null);
   const drunkPoseRefs = useRef<Record<string, HTMLImageElement>>({});
+  const backgroundPeopleRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const rafRef = useRef(0);
   const [screen, setScreen] = useState<Screen>("start");
@@ -34,12 +35,20 @@ export default function BarGame() {
     spriteRef.current = sprite;
     const poses = {
       forward: "/bar-game/personagem-tombando-frente.png",
-      backward: "/bar-game/personagem-tombando-tras.png",
     };
     Object.entries(poses).forEach(([key, src]) => {
       const image = new Image();
       image.src = src;
       drunkPoseRefs.current[key] = image;
+    });
+    const people = {
+      woman: "/bar-game/figurantes-mulher.png",
+      men: "/bar-game/figurantes-homens.png",
+    };
+    Object.entries(people).forEach(([key, src]) => {
+      const image = new Image();
+      image.src = src;
+      backgroundPeopleRefs.current[key] = image;
     });
   }, []);
 
@@ -63,6 +72,7 @@ export default function BarGame() {
     let facing: "left" | "right" = "right";
     let velocityX = 0;
     let dragging = false;
+    let celebrateUntil = 0;
     const keys = new Set<string>();
     const items: FallingItem[] = [];
 
@@ -147,6 +157,32 @@ export default function BarGame() {
       ctx.restore();
     };
 
+    const drawBackgroundPerson = (
+      image: HTMLImageElement | undefined,
+      column: number,
+      columns: number,
+      x: number,
+      celebrating: boolean,
+    ) => {
+      if (!image?.complete || !image.naturalWidth) return;
+      const cellW = image.naturalWidth / columns;
+      const cellH = image.naturalHeight / 2;
+      const sourceY = celebrating ? cellH : 0;
+      const drawH = Math.min(height * 0.24, 190);
+      const drawW = drawH * (cellW / cellH);
+      const floorY = height * 0.47;
+      ctx.save();
+      ctx.globalAlpha = 0.96;
+      ctx.drawImage(image, column * cellW, sourceY, cellW, cellH, x - drawW / 2, floorY - drawH, drawW, drawH);
+      ctx.restore();
+    };
+
+    const drawBackgroundPeople = (celebrating: boolean) => {
+      drawBackgroundPerson(backgroundPeopleRefs.current.men, 0, 2, width * 0.2, celebrating);
+      drawBackgroundPerson(backgroundPeopleRefs.current.woman, 1, 3, width * 0.5, celebrating);
+      drawBackgroundPerson(backgroundPeopleRefs.current.men, 1, 2, width * 0.8, celebrating);
+    };
+
     const drawPlayer = (x: number, y: number, moving: boolean) => {
       const sprite = spriteRef.current;
       if (!sprite?.complete) return;
@@ -158,15 +194,14 @@ export default function BarGame() {
       ctx.rotate(drunkRock);
 
       if (localDrunk >= 68) {
-        const poseKey = Math.sin(elapsed * 1.65) >= 0 ? "forward" : "backward";
-        const pose = drunkPoseRefs.current[poseKey];
-        const drawW = Math.min(width * 0.58, 340);
-        const drawH = drawW * (pose.naturalHeight / pose.naturalWidth);
+        const pose = drunkPoseRefs.current.forward;
+        const drawH = Math.min(height * 0.48, 390);
+        const drawW = drawH * (pose.naturalWidth / pose.naturalHeight);
         ctx.drawImage(pose, -drawW / 2, -drawH * 0.8, drawW, drawH);
       } else if (localDrunk >= 45) {
-        const pose = drunkPoseRefs.current.backward;
-        const drawW = Math.min(width * 0.54, 320);
-        const drawH = drawW * (pose.naturalHeight / pose.naturalWidth);
+        const pose = drunkPoseRefs.current.forward;
+        const drawH = Math.min(height * 0.48, 390);
+        const drawW = drawH * (pose.naturalWidth / pose.naturalHeight);
         ctx.drawImage(pose, -drawW / 2, -drawH * 0.82, drawW, drawH);
       } else {
         const cellW = sprite.naturalWidth / 5;
@@ -224,6 +259,7 @@ export default function BarGame() {
           items.splice(i, 1);
           localScore += item.kind === "drink" ? 10 : 5;
           localDrunk = Math.max(0, Math.min(100, localDrunk + ITEM_EFFECT[item.kind]));
+          if (item.kind === "drink") celebrateUntil = elapsed + 1.15;
           setScore(localScore);
           setDrunk(localDrunk);
         } else if (item.y > height + 40) {
@@ -234,6 +270,7 @@ export default function BarGame() {
       ctx.clearRect(0, 0, width, height);
       const bg = backgroundRef.current;
       if (bg?.complete) ctx.drawImage(bg, 0, 0, width, height);
+      drawBackgroundPeople(elapsed < celebrateUntil);
       ctx.save();
       const sway = Math.sin(elapsed * 2.4) * intoxication * 8;
       ctx.translate(sway, Math.cos(elapsed * 1.8) * intoxication * 3);
