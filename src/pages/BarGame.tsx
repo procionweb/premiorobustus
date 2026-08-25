@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Play, RotateCcw, Wine } from "lucide-react";
 
 type Screen = "start" | "playing" | "finished";
-type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number };
+type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number; variant: number };
 
 const GAME_SECONDS = 45;
 const ITEM_EFFECT = { drink: 9, water: -10, medicine: -16, glucose: -22 } as const;
@@ -15,6 +15,7 @@ export default function BarGame() {
   const backgroundPeopleFrames = useRef<Record<string, HTMLCanvasElement>>({});
   const jacksonSpriteRef = useRef<HTMLImageElement | null>(null);
   const jacksonFramesRef = useRef<HTMLCanvasElement[]>([]);
+  const bottleFramesRef = useRef<HTMLImageElement[]>([]);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const [screen, setScreen] = useState<Screen>("start");
@@ -131,6 +132,16 @@ export default function BarGame() {
     jackson.onload = () => {
       jacksonFramesRef.current = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0, 1.42));
     };
+    const bottleSources = [
+      "cafe-fino.png", "cafe-trufado.png", "canela.png", "chocolate.png", "limoncello.png",
+      "manga-maracuja.png", "maracuja.png", "mel.png", "pacoca.png",
+    ];
+    bottleFramesRef.current = new Array(bottleSources.length);
+    bottleSources.forEach((filename, index) => {
+      const image = new Image();
+      image.src = `/bar-game/bottles/${filename}`;
+      bottleFramesRef.current[index] = image;
+    });
     const audio = {
       cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
       music: new Audio("/bar-game/audio/musica-fundo.mp3"),
@@ -231,7 +242,22 @@ export default function BarGame() {
       ctx.rotate(item.spin);
       ctx.strokeStyle = "rgba(255,255,255,.8)";
       ctx.lineWidth = 2;
-      if (item.kind === "medicine") {
+      if (item.kind === "drink") {
+        const bottle = bottleFramesRef.current[item.variant % 9];
+        if (bottle) {
+          const drawH = 76;
+          const drawW = drawH * (bottle.width / bottle.height);
+          ctx.shadowColor = "rgba(0,0,0,.38)";
+          ctx.shadowBlur = 7;
+          ctx.shadowOffsetY = 4;
+          ctx.drawImage(bottle, -drawW / 2, -drawH / 2, drawW, drawH);
+        } else {
+          ctx.fillStyle = "#7c2d12";
+          ctx.beginPath();
+          ctx.roundRect(-10, -22, 20, 44, 6);
+          ctx.fill();
+        }
+      } else if (item.kind === "medicine") {
         ctx.fillStyle = "#ef4444";
         ctx.beginPath();
         ctx.roundRect(-16, -9, 32, 18, 9);
@@ -418,7 +444,7 @@ export default function BarGame() {
         spawnClock = 0;
         const roll = Math.random();
         const kind: FallingItem["kind"] = roll < 0.72 ? "drink" : roll < 0.83 ? "water" : roll < 0.92 ? "medicine" : "glucose";
-        items.push({ x: 30 + Math.random() * (width - 60), y: -35, speed: 150 + Math.random() * 95, kind, spin: 0 });
+        items.push({ x: 30 + Math.random() * (width - 60), y: -40, speed: 150 + Math.random() * 95, kind, spin: 0, variant: Math.floor(Math.random() * 9) });
       }
 
       const playerY = height - 22;
