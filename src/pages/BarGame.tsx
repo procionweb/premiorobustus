@@ -16,10 +16,12 @@ export default function BarGame() {
   const backgroundPeopleRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundPeopleFrames = useRef<Record<string, HTMLCanvasElement>>({});
   const backgroundCastRef = useRef([0, 1, 2, 3]);
+  const backgroundDeckRef = useRef<number[]>([]);
   const walkerSpriteRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const walkerFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
   const bottleFramesRef = useRef<HTMLImageElement[]>([]);
   const remedyImagesRef = useRef<Record<string, HTMLImageElement>>({});
+  const fallenPlayerRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const gameStartingRef = useRef(false);
@@ -41,17 +43,16 @@ export default function BarGame() {
     });
     activeEffectsRef.current.forEach((audio) => audio.pause());
     activeEffectsRef.current.clear();
-    const previousCast = [...backgroundCastRef.current].sort((a, b) => a - b).join(",");
-    let nextCast: number[] = [];
-    for (let attempt = 0; attempt < 6; attempt++) {
-      nextCast = Array.from({ length: 12 }, (_, index) => index);
-      for (let index = nextCast.length - 1; index > 0; index--) {
+    if (backgroundDeckRef.current.length < 4) {
+      const used = new Set(backgroundDeckRef.current);
+      const refill = Array.from({ length: 12 }, (_, index) => index).filter((index) => !used.has(index));
+      for (let index = refill.length - 1; index > 0; index--) {
         const swapIndex = Math.floor(Math.random() * (index + 1));
-        [nextCast[index], nextCast[swapIndex]] = [nextCast[swapIndex], nextCast[index]];
+        [refill[index], refill[swapIndex]] = [refill[swapIndex], refill[index]];
       }
-      nextCast = nextCast.slice(0, 4);
-      if ([...nextCast].sort((a, b) => a - b).join(",") !== previousCast) break;
+      backgroundDeckRef.current.push(...refill);
     }
+    const nextCast = backgroundDeckRef.current.splice(0, 4);
     backgroundCastRef.current = nextCast;
     setScore(0);
     setDrunk(0);
@@ -91,6 +92,15 @@ export default function BarGame() {
       const image = new Image();
       image.src = src;
       drunkPoseRefs.current[key as Character] = image;
+    });
+    const fallen: Record<Character, string> = {
+      jackson: "/bar-game/jackson-caido.png",
+      ginaldo: "/bar-game/ginaldo-caido.png",
+    };
+    Object.entries(fallen).forEach(([key, src]) => {
+      const image = new Image();
+      image.src = src;
+      fallenPlayerRefs.current[key as Character] = image;
     });
     const people = Array.from({ length: 12 }, (_, index) => `/bar-game/figurante-${index + 1}.png`);
     const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1, rows = 2, heightScale = 1) => {
@@ -251,6 +261,11 @@ export default function BarGame() {
     let celebrateUntil = 0;
     let lastCheerAt = -3;
     let nextBurpAt = 4 + Math.random() * 3;
+    let balance = 0;
+    let balanceVelocity = 0;
+    let balancePush = (Math.random() < 0.5 ? -1 : 1) * 0.08;
+    let nextBalanceShift = 1.2;
+    let fellAt = -1;
     const keys = new Set<string>();
     const items: FallingItem[] = [];
     const playAudio = (key: "cheer" | "burp" | "drink") => {
@@ -491,6 +506,61 @@ export default function BarGame() {
       ctx.restore();
     };
 
+    const drawFallenPlayer = () => {
+      const image = fallenPlayerRefs.current[selectedCharacter];
+      if (!image?.complete || !image.naturalWidth) return;
+      const maxW = width * 0.88;
+      const maxH = height * 0.43;
+      const scale = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight);
+      const drawW = image.naturalWidth * scale;
+      const drawH = image.naturalHeight * scale;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, (elapsed - fellAt) * 4);
+      ctx.drawImage(image, width / 2 - drawW / 2, height - 18 - drawH, drawW, drawH);
+      ctx.restore();
+    };
+
+    const drawBalanceBar = () => {
+      const barW = Math.min(280, width * 0.68);
+      const barH = 18;
+      const x = (width - barW) / 2;
+      const y = 102;
+      ctx.save();
+      ctx.fillStyle = "rgba(10,8,6,.82)";
+      ctx.strokeStyle = "rgba(255,255,255,.72)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(x - 8, y - 25, barW + 16, 53, 10);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = "white";
+      ctx.font = "800 11px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("EQUILIBRIO", width / 2, y - 10);
+      const gradient = ctx.createLinearGradient(x, 0, x + barW, 0);
+      gradient.addColorStop(0, "#dc2626");
+      gradient.addColorStop(0.28, "#f59e0b");
+      gradient.addColorStop(0.5, "#22c55e");
+      gradient.addColorStop(0.72, "#f59e0b");
+      gradient.addColorStop(1, "#dc2626");
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.roundRect(x, y, barW, barH, 6);
+      ctx.fill();
+      const markerX = x + ((balance + 1) / 2) * barW;
+      ctx.fillStyle = "white";
+      ctx.strokeStyle = "#111827";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(markerX, y - 7);
+      ctx.lineTo(markerX - 8, y + barH + 7);
+      ctx.lineTo(markerX + 8, y + barH + 7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    };
+
     const render = (now: number) => {
       if (stopped) return;
       const dt = Math.max(0, Math.min((now - last) / 1000, 0.04));
@@ -508,6 +578,19 @@ export default function BarGame() {
       }
       const previousX = playerX;
       const keyboardDirection = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
+      const pointerDirection = dragging && Math.abs(targetX - playerX) > 8 ? Math.sign(targetX - playerX) : 0;
+      const controlDirection = keyboardDirection || pointerDirection;
+      if (fellAt < 0) {
+        if (elapsed >= nextBalanceShift) {
+          balancePush = (Math.random() * 2 - 1) * (0.1 + intoxication * 0.34);
+          nextBalanceShift = elapsed + 0.75 + Math.random() * 1.15;
+        }
+        const instability = 0.11 + intoxication * 0.48;
+        balanceVelocity += (balancePush + balance * instability - controlDirection * (0.72 + intoxication * 0.18)) * dt;
+        balanceVelocity *= Math.pow(0.34, dt);
+        balance += balanceVelocity * dt;
+        if (Math.abs(balance) >= 1) fellAt = elapsed;
+      }
       if (keyboardDirection !== 0) {
         targetX = Math.max(45, Math.min(width - 45, targetX + keyboardDirection * 330 * dt));
       }
@@ -575,11 +658,13 @@ export default function BarGame() {
       const sway = Math.sin(elapsed * 2.4) * intoxication * 8;
       ctx.translate(sway, Math.cos(elapsed * 1.8) * intoxication * 3);
       items.forEach(drawItem);
-      drawPlayer(playerX, playerY, Math.abs(playerX - previousX) > 0.25);
+      if (fellAt < 0) drawPlayer(playerX, playerY, Math.abs(playerX - previousX) > 0.25);
+      else drawFallenPlayer();
       ctx.restore();
       ctx.restore();
+      drawBalanceBar();
 
-      if (secondsLeft <= 0) {
+      if (secondsLeft <= 0 || (fellAt >= 0 && elapsed - fellAt >= 1.35)) {
         musicShouldPlayRef.current = false;
         Object.values(audioRefs.current).forEach((audio) => {
           try { audio.pause(); audio.currentTime = 0; } catch {}
