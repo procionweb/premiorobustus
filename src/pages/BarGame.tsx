@@ -15,6 +15,7 @@ export default function BarGame() {
   const drunkPoseRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const backgroundPeopleRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundPeopleFrames = useRef<Record<string, HTMLCanvasElement>>({});
+  const backgroundCastRef = useRef([0, 1, 2, 3]);
   const walkerSpriteRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const walkerFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
   const bottleFramesRef = useRef<HTMLImageElement[]>([]);
@@ -40,6 +41,18 @@ export default function BarGame() {
     });
     activeEffectsRef.current.forEach((audio) => audio.pause());
     activeEffectsRef.current.clear();
+    const previousCast = [...backgroundCastRef.current].sort((a, b) => a - b).join(",");
+    let nextCast: number[] = [];
+    for (let attempt = 0; attempt < 6; attempt++) {
+      nextCast = Array.from({ length: 12 }, (_, index) => index);
+      for (let index = nextCast.length - 1; index > 0; index--) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [nextCast[index], nextCast[swapIndex]] = [nextCast[swapIndex], nextCast[index]];
+      }
+      nextCast = nextCast.slice(0, 4);
+      if ([...nextCast].sort((a, b) => a - b).join(",") !== previousCast) break;
+    }
+    backgroundCastRef.current = nextCast;
     setScore(0);
     setDrunk(0);
     setRemaining(GAME_SECONDS);
@@ -79,7 +92,7 @@ export default function BarGame() {
       image.src = src;
       drunkPoseRefs.current[key as Character] = image;
     });
-    const people = [1, 2, 3, 4].map((number) => `/bar-game/figurante-${number}.png`);
+    const people = Array.from({ length: 12 }, (_, index) => `/bar-game/figurante-${index + 1}.png`);
     const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1, rows = 2, heightScale = 1) => {
       const baseCellW = image.naturalWidth / columns;
       const cellW = Math.floor(baseCellW * widthScale);
@@ -353,8 +366,13 @@ export default function BarGame() {
       x: number,
     ) => {
       if (!frame) return;
-      const drawH = Math.min(height * 0.205, 168);
-      const drawW = drawH * (frame.width / frame.height);
+      let drawH = Math.min(height * 0.205, 168);
+      let drawW = drawH * (frame.width / frame.height);
+      const maxWidth = width * 0.235;
+      if (drawW > maxWidth) {
+        drawH *= maxWidth / drawW;
+        drawW = maxWidth;
+      }
       const floorY = height * 0.475;
       ctx.save();
       ctx.globalAlpha = 0.96;
@@ -367,7 +385,8 @@ export default function BarGame() {
     const drawBackgroundPeople = (celebrating: boolean) => {
       const suffix = celebrating ? "Cheer" : "Idle";
       [0.2, 0.4, 0.6, 0.8].forEach((position, index) => {
-        drawBackgroundPerson(backgroundPeopleFrames.current[`person${index}${suffix}`], width * position);
+        const characterIndex = backgroundCastRef.current[index];
+        drawBackgroundPerson(backgroundPeopleFrames.current[`person${characterIndex}${suffix}`], width * position);
       });
     };
 
