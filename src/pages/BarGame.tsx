@@ -34,6 +34,25 @@ export default function BarGame() {
   const [drunk, setDrunk] = useState(0);
   const [remaining, setRemaining] = useState(GAME_SECONDS);
 
+  const playUiSound = useCallback((kind: "button" | "select") => {
+    const AudioContextClass = window.AudioContext;
+    if (!AudioContextClass) return;
+    const context = new AudioContextClass();
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(0.0001, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(kind === "button" ? 0.16 : 0.1, context.currentTime + 0.008);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (kind === "button" ? 0.12 : 0.18));
+    gain.connect(context.destination);
+    const oscillator = context.createOscillator();
+    oscillator.type = kind === "button" ? "square" : "sine";
+    oscillator.frequency.setValueAtTime(kind === "button" ? 190 : 520, context.currentTime);
+    if (kind === "select") oscillator.frequency.exponentialRampToValueAtTime(760, context.currentTime + 0.12);
+    oscillator.connect(gain);
+    oscillator.start();
+    oscillator.stop(context.currentTime + (kind === "button" ? 0.12 : 0.18));
+    oscillator.addEventListener("ended", () => void context.close(), { once: true });
+  }, []);
+
   const startGame = useCallback(() => {
     if (gameStartingRef.current) return;
     gameStartingRef.current = true;
@@ -45,7 +64,7 @@ export default function BarGame() {
     activeEffectsRef.current.clear();
     if (backgroundDeckRef.current.length < 4) {
       const used = new Set(backgroundDeckRef.current);
-      const refill = Array.from({ length: 12 }, (_, index) => index).filter((index) => !used.has(index));
+      const refill = Array.from({ length: 13 }, (_, index) => index).filter((index) => !used.has(index));
       for (let index = refill.length - 1; index > 0; index--) {
         const swapIndex = Math.floor(Math.random() * (index + 1));
         [refill[index], refill[swapIndex]] = [refill[swapIndex], refill[index]];
@@ -102,7 +121,7 @@ export default function BarGame() {
       image.src = src;
       fallenPlayerRefs.current[key as Character] = image;
     });
-    const people = Array.from({ length: 12 }, (_, index) => `/bar-game/figurante-${index + 1}.png`);
+    const people = Array.from({ length: 13 }, (_, index) => `/bar-game/figurante-${index + 1}.png`);
     const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1, rows = 2, heightScale = 1) => {
       const baseCellW = image.naturalWidth / columns;
       const cellW = Math.floor(baseCellW * widthScale);
@@ -602,7 +621,7 @@ export default function BarGame() {
       }
       const previousX = playerX;
       const keyboardDirection = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
-      const pointerDirection = dragging && Math.abs(targetX - playerX) > 8 ? Math.sign(targetX - playerX) : 0;
+      const pointerDirection = Math.abs(targetX - playerX) > 8 ? Math.sign(targetX - playerX) : 0;
       const controlDirection = keyboardDirection || pointerDirection;
       const balanceActive = localDrunk >= 45;
       if (!balanceActive) {
@@ -619,10 +638,12 @@ export default function BarGame() {
           balancePush = (Math.random() * 2 - 1) * (0.07 + intoxication * 0.24);
           nextBalanceShift = elapsed + 0.95 + Math.random() * 1.25;
         }
-        const instability = (0.08 + intoxication * 0.34) * activationRamp;
-        balanceVelocity += (balancePush * activationRamp + balance * instability - controlDirection * 0.78) * dt;
-        balanceVelocity *= Math.pow(0.25, dt);
-        balance += balanceVelocity * dt;
+        const instability = (0.05 + intoxication * 0.18) * activationRamp;
+        balanceVelocity += (balancePush * activationRamp + balance * instability) * dt;
+        balanceVelocity *= Math.pow(0.18, dt);
+        balanceVelocity = Math.max(-0.3, Math.min(0.3, balanceVelocity));
+        balance += balanceVelocity * dt - controlDirection * 0.82 * dt;
+        balance = Math.max(-1.05, Math.min(1.05, balance));
         if (Math.abs(balance) >= 1) fellAt = elapsed;
       }
       if (keyboardDirection !== 0) {
@@ -734,12 +755,17 @@ export default function BarGame() {
       const key = event.key.toLowerCase();
       if (key === "a" || key === "enter") startGame();
       else if (key === "b" || key === "escape") setScreen("start");
-      else if (key === "arrowleft") setSelectedCharacter("ginaldo");
-      else if (key === "arrowright") setSelectedCharacter("jackson");
+      else if (key === "arrowleft") {
+        playUiSound("select");
+        setSelectedCharacter("ginaldo");
+      } else if (key === "arrowright") {
+        playUiSound("select");
+        setSelectedCharacter("jackson");
+      }
     };
     window.addEventListener("keydown", handleSelectionKey);
     return () => window.removeEventListener("keydown", handleSelectionKey);
-  }, [screen, startGame]);
+  }, [screen, startGame, playUiSound]);
 
   return (
     <main
@@ -773,7 +799,10 @@ export default function BarGame() {
         <section className="absolute inset-0 z-20 overflow-hidden text-center">
           <img src="/bar-game/home-background.jpg" alt="Bhaskar Licores" className="absolute inset-0 h-full w-full object-cover object-center" />
           <button
-            onClick={() => setScreen("selection")}
+            onClick={() => {
+              playUiSound("button");
+              setScreen("selection");
+            }}
             className="absolute bottom-[max(34px,calc(env(safe-area-inset-bottom)+22px))] left-1/2 z-10 flex min-h-16 -translate-x-1/2 items-center gap-3 rounded-md border-2 border-amber-300 bg-[#101827]/95 px-12 py-4 text-xl font-black uppercase text-amber-100 shadow-[0_0_0_3px_#713f12,0_7px_0_#422006,0_0_28px_rgba(37,99,235,0.75)] transition-transform hover:scale-105 active:translate-y-1 active:shadow-[0_0_0_3px_#713f12,0_2px_0_#422006]"
           >
             <Play className="h-7 w-7 fill-amber-300 text-amber-300" />
@@ -785,10 +814,10 @@ export default function BarGame() {
       {screen === "selection" && (
         <section className="absolute inset-0 z-30 overflow-hidden bg-[#f4e3b3]">
           <img src={`/bar-game/selecao-${selectedCharacter}.png`} alt="Seleção de personagem" className="absolute inset-0 h-full w-full object-cover object-center" />
-          <button aria-label="Selecionar Ginaldo" onClick={() => setSelectedCharacter("ginaldo")} className="absolute bottom-[6%] left-[8%] h-[25%] w-[41%]" />
-          <button aria-label="Selecionar Jackson" onClick={() => setSelectedCharacter("jackson")} className="absolute bottom-[6%] right-[8%] h-[25%] w-[41%]" />
-          <button aria-label="Confirmar personagem" onClick={startGame} className="absolute bottom-0 left-[11%] h-[7%] w-[34%]" />
-          <button aria-label="Voltar" onClick={() => setScreen("start")} className="absolute bottom-0 right-[11%] h-[7%] w-[34%]" />
+          <button aria-label="Selecionar Ginaldo" onClick={() => { playUiSound("select"); setSelectedCharacter("ginaldo"); }} className="absolute bottom-[6%] left-[8%] h-[25%] w-[41%]" />
+          <button aria-label="Selecionar Jackson" onClick={() => { playUiSound("select"); setSelectedCharacter("jackson"); }} className="absolute bottom-[6%] right-[8%] h-[25%] w-[41%]" />
+          <button aria-label="Confirmar personagem" onClick={() => { playUiSound("button"); startGame(); }} className="absolute bottom-0 left-[11%] h-[7%] w-[34%]" />
+          <button aria-label="Voltar" onClick={() => { playUiSound("button"); setScreen("start"); }} className="absolute bottom-0 right-[11%] h-[7%] w-[34%]" />
         </section>
       )}
 
