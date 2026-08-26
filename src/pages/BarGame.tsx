@@ -234,6 +234,8 @@ export default function BarGame() {
     };
     const pointerUp = (event: PointerEvent) => {
       dragging = false;
+      targetX = playerX;
+      velocityX = 0;
       if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
     };
     const keyDown = (event: KeyboardEvent) => {
@@ -242,7 +244,14 @@ export default function BarGame() {
         keys.add(event.key.toLowerCase());
       }
     };
-    const keyUp = (event: KeyboardEvent) => keys.delete(event.key.toLowerCase());
+    const keyUp = (event: KeyboardEvent) => {
+      keys.delete(event.key.toLowerCase());
+      const stillMoving = keys.has("arrowleft") || keys.has("arrowright") || keys.has("a") || keys.has("d");
+      if (!stillMoving) {
+        targetX = playerX;
+        velocityX = 0;
+      }
+    };
     canvas.addEventListener("pointerdown", pointerDown);
     canvas.addEventListener("pointermove", pointerMove);
     canvas.addEventListener("pointerup", pointerUp);
