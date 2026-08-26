@@ -236,11 +236,13 @@ export default function BarGame() {
       if (musicShouldPlayRef.current && audio.music.paused) void audio.music.play().catch(() => {});
       if (!musicShouldPlayRef.current && audio.menu.paused) void audio.menu.play().catch(() => {});
     };
+    const resumeTimer = window.setInterval(resumeActiveMusic, 900);
     document.addEventListener("visibilitychange", resumeActiveMusic);
     Object.values(audio).forEach((item) => { item.preload = "auto"; item.load(); });
     audioRefs.current = audio;
     return () => {
       musicShouldPlayRef.current = false;
+      window.clearInterval(resumeTimer);
       document.removeEventListener("visibilitychange", resumeActiveMusic);
       Object.values(audio).forEach((item) => item.pause());
       activeEffectsRef.current.forEach((item) => item.pause());
