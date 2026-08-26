@@ -158,7 +158,7 @@ export default function BarGame() {
     ginaldoWalker.src = "/bar-game/ginaldo-apoiador-sprites.png";
     walkerSpriteRefs.current.ginaldo = ginaldoWalker;
     ginaldoWalker.onload = () => {
-      walkerFramesRef.current.ginaldo = [1, 2, 3, 4].map((column) => isolatePerson(ginaldoWalker, column, 5, 0, 1.35));
+      walkerFramesRef.current.ginaldo = [0, 1, 2, 1].map((column) => isolatePerson(ginaldoWalker, column, 5, 0, 1.12));
     };
     const bottleSources = [
       "cafe-fino.png", "cafe-trufado.png", "canela.png", "chocolate.png", "limoncello.png",
@@ -449,7 +449,10 @@ export default function BarGame() {
       const drawLeaning = (alpha: number) => {
         const pose = drunkPoseRefs.current[selectedCharacter];
         if (!pose?.complete || !pose.naturalWidth) return;
-        const drawH = Math.min(height * 0.48, 390);
+        const baseDrawH = Math.min(height * 0.48, 390);
+        const naturalWidth = baseDrawH * (pose.naturalWidth / pose.naturalHeight);
+        const maxWidth = baseDrawH * 0.8;
+        const drawH = baseDrawH * Math.min(1, maxWidth / naturalWidth);
         const drawW = drawH * (pose.naturalWidth / pose.naturalHeight);
         ctx.globalAlpha = alpha;
         ctx.drawImage(pose, -drawW / 2, -drawH, drawW, drawH);
