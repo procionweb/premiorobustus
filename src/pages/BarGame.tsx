@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Play } from "lucide-react";
 
 type Screen = "start" | "selection" | "playing";
 type Character = "jackson" | "ginaldo";
@@ -158,7 +157,7 @@ export default function BarGame() {
     ginaldoWalker.src = "/bar-game/ginaldo-apoiador-sprites.png";
     walkerSpriteRefs.current.ginaldo = ginaldoWalker;
     ginaldoWalker.onload = () => {
-      walkerFramesRef.current.ginaldo = [0, 1, 2, 1].map((column) => isolatePerson(ginaldoWalker, column, 5, 0, 1.12));
+      walkerFramesRef.current.ginaldo = [2, 2, 2, 2].map((column) => isolatePerson(ginaldoWalker, column, 5, 0, 1.35));
     };
     const bottleSources = [
       "cafe-fino.png", "cafe-trufado.png", "canela.png", "chocolate.png", "limoncello.png",
@@ -387,13 +386,25 @@ export default function BarGame() {
         ? startX + (endX - startX) * progress
         : endX - (endX - startX) * progress;
       const floorY = height * 0.67;
-      const walkingFrames = [1, 2, 3, 4];
-      const frameIndex = Math.floor(frameClock / 0.16) % walkingFrames.length;
+      const framePosition = frameClock / 0.24;
+      const frameIndex = Math.floor(framePosition) % frames.length;
+      const nextFrameIndex = (frameIndex + 1) % frames.length;
+      const rawBlend = framePosition - Math.floor(framePosition);
+      const frameBlend = rawBlend * rawBlend * (3 - 2 * rawBlend);
+      const walkWave = Math.sin(framePosition * Math.PI);
+      const bob = Math.abs(walkWave) * 3;
 
       ctx.save();
-      ctx.translate(x, 0);
+      ctx.translate(x, bob);
       if (!goingRight) ctx.scale(-1, 1);
+      if (selectedCharacter === "ginaldo") {
+        ctx.rotate(walkWave * 0.012);
+        ctx.scale(1 - Math.abs(walkWave) * 0.008, 1 + Math.abs(walkWave) * 0.008);
+      }
+      ctx.globalAlpha = 1 - frameBlend;
       ctx.drawImage(frames[frameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
+      ctx.globalAlpha = frameBlend;
+      ctx.drawImage(frames[nextFrameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
       ctx.restore();
 
       const centerDistance = Math.abs(x - width / 2);
@@ -629,15 +640,13 @@ export default function BarGame() {
       )}
 
       {screen === "start" && (
-        <section
-          className="absolute inset-0 z-20 bg-cover bg-center text-center"
-          style={{ backgroundImage: "url('/bar-game/home-background.jpg')" }}
-        >
-          <div className="absolute inset-0 bg-black/20" />
-          <button onClick={() => setScreen("selection")} className="absolute bottom-[max(42px,calc(env(safe-area-inset-bottom)+28px))] left-1/2 z-10 flex min-h-14 -translate-x-1/2 items-center gap-3 rounded-md bg-orange-500 px-10 py-4 text-xl font-black uppercase shadow-[0_6px_0_#9a3412,0_8px_24px_rgba(0,0,0,0.55)] active:translate-y-1 active:shadow-none">
-            <Play className="h-6 w-6 fill-current" />
-            Jogar
-          </button>
+        <section className="absolute inset-0 z-20 overflow-hidden text-center">
+          <img src="/bar-game/home-background.jpg" alt="Bhaskar Licores" className="absolute inset-0 h-full w-full object-cover object-center" />
+          <button
+            aria-label="Jogar"
+            onClick={() => setScreen("selection")}
+            className="absolute bottom-[10%] left-[34%] z-10 h-[58%] w-[32%] rounded-full bg-transparent transition-[filter,transform] hover:scale-[1.02] hover:drop-shadow-[0_0_18px_rgba(251,191,36,0.75)] active:scale-[0.99]"
+          />
         </section>
       )}
 
