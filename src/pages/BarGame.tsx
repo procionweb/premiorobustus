@@ -207,11 +207,14 @@ export default function BarGame() {
     const audio = {
       cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
       music: new Audio("/bar-game/audio/musica-fundo.mp3"),
+      menu: new Audio("/bar-game/audio/musica-menu.mp3"),
       burp: new Audio("/bar-game/audio/arroto.mp3"),
       drink: new Audio("/bar-game/audio/bebida.mp3"),
     };
     audio.music.loop = false;
     audio.music.volume = 0.18;
+    audio.menu.loop = true;
+    audio.menu.volume = 0.2;
     audio.cheer.volume = 0.2;
     audio.burp.volume = 0.95;
     audio.drink.volume = 0.95;
@@ -234,6 +237,26 @@ export default function BarGame() {
       activeEffectsRef.current.clear();
     };
   }, []);
+
+  useEffect(() => {
+    const menu = audioRefs.current.menu;
+    if (!menu) return;
+    if (screen === "playing") {
+      menu.pause();
+      menu.currentTime = 0;
+      return;
+    }
+    const startMenuMusic = () => {
+      if (screen !== "playing" && menu.paused) void menu.play().catch(() => {});
+    };
+    startMenuMusic();
+    window.addEventListener("pointerdown", startMenuMusic, { once: true });
+    window.addEventListener("keydown", startMenuMusic, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", startMenuMusic);
+      window.removeEventListener("keydown", startMenuMusic);
+    };
+  }, [screen]);
 
   useEffect(() => {
     if (screen !== "playing") return;
@@ -265,6 +288,7 @@ export default function BarGame() {
     let balanceVelocity = 0;
     let balancePush = (Math.random() < 0.5 ? -1 : 1) * 0.08;
     let nextBalanceShift = 1.2;
+    let balanceActivatedAt = -1;
     let fellAt = -1;
     const keys = new Set<string>();
     const items: FallingItem[] = [];
@@ -580,14 +604,24 @@ export default function BarGame() {
       const keyboardDirection = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
       const pointerDirection = dragging && Math.abs(targetX - playerX) > 8 ? Math.sign(targetX - playerX) : 0;
       const controlDirection = keyboardDirection || pointerDirection;
-      if (fellAt < 0) {
+      const balanceActive = localDrunk >= 45;
+      if (!balanceActive) {
+        balance = 0;
+        balanceVelocity = 0;
+        balanceActivatedAt = -1;
+      } else if (balanceActivatedAt < 0) {
+        balanceActivatedAt = elapsed;
+        nextBalanceShift = elapsed + 1.1;
+      }
+      if (fellAt < 0 && balanceActive) {
+        const activationRamp = Math.min(1, (elapsed - balanceActivatedAt) / 2.6);
         if (elapsed >= nextBalanceShift) {
-          balancePush = (Math.random() * 2 - 1) * (0.1 + intoxication * 0.34);
-          nextBalanceShift = elapsed + 0.75 + Math.random() * 1.15;
+          balancePush = (Math.random() * 2 - 1) * (0.07 + intoxication * 0.24);
+          nextBalanceShift = elapsed + 0.95 + Math.random() * 1.25;
         }
-        const instability = 0.11 + intoxication * 0.48;
-        balanceVelocity += (balancePush + balance * instability - controlDirection * (0.72 + intoxication * 0.18)) * dt;
-        balanceVelocity *= Math.pow(0.34, dt);
+        const instability = (0.08 + intoxication * 0.34) * activationRamp;
+        balanceVelocity += (balancePush * activationRamp + balance * instability - controlDirection * 0.78) * dt;
+        balanceVelocity *= Math.pow(0.25, dt);
         balance += balanceVelocity * dt;
         if (Math.abs(balance) >= 1) fellAt = elapsed;
       }
