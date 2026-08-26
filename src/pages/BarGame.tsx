@@ -19,6 +19,8 @@ export default function BarGame() {
   const remedyImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
+  const gameStartingRef = useRef(false);
+  const activeEffectsRef = useRef<Set<HTMLAudioElement>>(new Set());
   const [screen, setScreen] = useState<Screen>("start");
   const [gameRun, setGameRun] = useState(0);
   const [score, setScore] = useState(0);
@@ -26,9 +28,13 @@ export default function BarGame() {
   const [remaining, setRemaining] = useState(GAME_SECONDS);
 
   const startGame = useCallback(() => {
+    if (gameStartingRef.current) return;
+    gameStartingRef.current = true;
     Object.values(audioRefs.current).forEach((audio) => {
       try { audio.pause(); audio.currentTime = 0; } catch {}
     });
+    activeEffectsRef.current.forEach((audio) => audio.pause());
+    activeEffectsRef.current.clear();
     setScore(0);
     setDrunk(0);
     setRemaining(GAME_SECONDS);
@@ -149,14 +155,18 @@ export default function BarGame() {
       burp: new Audio("/bar-game/audio/arroto.mp3"),
       drink: new Audio("/bar-game/audio/bebida.mp3"),
     };
-    audio.music.loop = true;
+    audio.music.loop = false;
     audio.music.volume = 0.18;
     audio.cheer.volume = 0.2;
     audio.burp.volume = 0.95;
-    audio.drink.volume = 0.78;
-    Object.values(audio).forEach((item) => { item.preload = "auto"; });
+    audio.drink.volume = 0.95;
+    Object.values(audio).forEach((item) => { item.preload = "auto"; item.load(); });
     audioRefs.current = audio;
-    return () => Object.values(audio).forEach((item) => item.pause());
+    return () => {
+      Object.values(audio).forEach((item) => item.pause());
+      activeEffectsRef.current.forEach((item) => item.pause());
+      activeEffectsRef.current.clear();
+    };
   }, []);
 
   useEffect(() => {
@@ -188,10 +198,13 @@ export default function BarGame() {
     const keys = new Set<string>();
     const items: FallingItem[] = [];
     const playAudio = (key: "cheer" | "burp" | "drink") => {
-      const audio = audioRefs.current[key];
-      if (!audio) return;
-      try { audio.pause(); audio.currentTime = 0; } catch {}
-      void audio.play().catch(() => {});
+      const source = audioRefs.current[key];
+      if (!source) return;
+      const audio = source.cloneNode(true) as HTMLAudioElement;
+      audio.volume = source.volume;
+      activeEffectsRef.current.add(audio);
+      audio.addEventListener("ended", () => activeEffectsRef.current.delete(audio), { once: true });
+      void audio.play().catch(() => activeEffectsRef.current.delete(audio));
     };
 
     const resize = () => {
@@ -482,9 +495,12 @@ export default function BarGame() {
         Object.values(audioRefs.current).forEach((audio) => {
           try { audio.pause(); audio.currentTime = 0; } catch {}
         });
+        activeEffectsRef.current.forEach((audio) => audio.pause());
+        activeEffectsRef.current.clear();
         setScore(0);
         setDrunk(0);
         setRemaining(GAME_SECONDS);
+        gameStartingRef.current = false;
         setScreen("start");
         return;
       }
