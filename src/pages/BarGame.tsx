@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 
-type Screen = "start" | "playing";
+type Screen = "start" | "selection" | "playing";
+type Character = "jackson" | "ginaldo";
 type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number; variant: number };
 
 const GAME_SECONDS = 30;
@@ -9,12 +10,13 @@ const ITEM_EFFECT = { water: -10, medicine: -16, glucose: -22 } as const;
 
 export default function BarGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const spriteRef = useRef<HTMLImageElement | null>(null);
-  const drunkPoseRefs = useRef<Record<string, HTMLImageElement>>({});
+  const playerSpriteRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
+  const playerFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
+  const drunkPoseRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const backgroundPeopleRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundPeopleFrames = useRef<Record<string, HTMLCanvasElement>>({});
-  const jacksonSpriteRef = useRef<HTMLImageElement | null>(null);
-  const jacksonFramesRef = useRef<HTMLCanvasElement[]>([]);
+  const walkerSpriteRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
+  const walkerFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
   const bottleFramesRef = useRef<HTMLImageElement[]>([]);
   const remedyImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const backgroundRef = useRef<HTMLImageElement | null>(null);
@@ -23,6 +25,7 @@ export default function BarGame() {
   const activeEffectsRef = useRef<Set<HTMLAudioElement>>(new Set());
   const musicShouldPlayRef = useRef(false);
   const [screen, setScreen] = useState<Screen>("start");
+  const [selectedCharacter, setSelectedCharacter] = useState<Character>("jackson");
   const [gameRun, setGameRun] = useState(0);
   const [score, setScore] = useState(0);
   const [drunk, setDrunk] = useState(0);
@@ -54,16 +57,27 @@ export default function BarGame() {
     const bg = new Image();
     bg.src = "/bar-game/bar-background.png";
     backgroundRef.current = bg;
-    const sprite = new Image();
-    sprite.src = "/bar-game/personagem-sprites-transparente.png";
-    spriteRef.current = sprite;
-    const poses = {
-      forward: "/bar-game/personagem-tombando-frente.png",
+    ["jackson", "ginaldo"].forEach((character) => {
+      const selection = new Image();
+      selection.src = `/bar-game/selecao-${character}.png`;
+    });
+    const players: Record<Character, string> = {
+      jackson: "/bar-game/personagem-sprites-transparente.png",
+      ginaldo: "/bar-game/ginaldo-sprites.png",
+    };
+    Object.entries(players).forEach(([key, src]) => {
+      const image = new Image();
+      image.src = src;
+      playerSpriteRefs.current[key as Character] = image;
+    });
+    const poses: Record<Character, string> = {
+      jackson: "/bar-game/personagem-tombando-frente.png",
+      ginaldo: "/bar-game/ginaldo-tombando.png",
     };
     Object.entries(poses).forEach(([key, src]) => {
       const image = new Image();
       image.src = src;
-      drunkPoseRefs.current[key] = image;
+      drunkPoseRefs.current[key as Character] = image;
     });
     const people = [1, 2, 3, 4].map((number) => `/bar-game/figurante-${number}.png`);
     const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1, rows = 2) => {
@@ -117,6 +131,14 @@ export default function BarGame() {
       frameCtx.putImageData(pixels, 0, 0);
       return frame;
     };
+    (Object.keys(players) as Character[]).forEach((character) => {
+      const image = playerSpriteRefs.current[character];
+      const prepareFrames = () => {
+        playerFramesRef.current[character] = [0, 1, 2, 3, 4].map((column) => isolatePerson(image, column, 5, 0));
+      };
+      if (image.complete && image.naturalWidth) prepareFrames();
+      else image.addEventListener("load", prepareFrames, { once: true });
+    });
     people.forEach((src, index) => {
       const image = new Image();
       image.src = src;
@@ -128,9 +150,15 @@ export default function BarGame() {
     });
     const jackson = new Image();
     jackson.src = "/bar-game/jackson-sprites.png";
-    jacksonSpriteRef.current = jackson;
+    walkerSpriteRefs.current.jackson = jackson;
     jackson.onload = () => {
-      jacksonFramesRef.current = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0, 1.42));
+      walkerFramesRef.current.jackson = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0, 1.42));
+    };
+    const ginaldoWalker = new Image();
+    ginaldoWalker.src = "/bar-game/ginaldo-apoiador-sprites.png";
+    walkerSpriteRefs.current.ginaldo = ginaldoWalker;
+    ginaldoWalker.onload = () => {
+      walkerFramesRef.current.ginaldo = [1, 2, 3, 4].map((column) => isolatePerson(ginaldoWalker, column, 5, 0, 1.35));
     };
     const bottleSources = [
       "cafe-fino.png", "cafe-trufado.png", "canela.png", "chocolate.png", "limoncello.png",
@@ -342,10 +370,10 @@ export default function BarGame() {
       });
     };
 
-    const drawJackson = () => {
-      const sprite = jacksonSpriteRef.current;
+    const drawWalker = () => {
+      const sprite = walkerSpriteRefs.current[selectedCharacter];
       if (!sprite?.complete || !sprite.naturalWidth) return;
-      const frames = jacksonFramesRef.current;
+      const frames = walkerFramesRef.current[selectedCharacter];
       if (frames.length !== 4) return;
       const halfTrip = 8.5;
       const cycle = elapsed % (halfTrip * 2);
@@ -394,13 +422,13 @@ export default function BarGame() {
         ctx.font = "900 17px system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText("Vai Jackson!!", bubbleX + bubbleW / 2, bubbleY + bubbleH / 2);
+        ctx.fillText(`Vai ${selectedCharacter === "jackson" ? "Jackson" : "Ginaldo"}!!`, bubbleX + bubbleW / 2, bubbleY + bubbleH / 2);
         ctx.restore();
       }
     };
 
     const drawPlayer = (x: number, y: number, moving: boolean) => {
-      const sprite = spriteRef.current;
+      const sprite = playerSpriteRefs.current[selectedCharacter];
       if (!sprite?.complete) return;
       ctx.save();
       ctx.translate(x, 0);
@@ -410,16 +438,16 @@ export default function BarGame() {
       ctx.rotate(drunkRock);
 
       const drawStanding = (alpha: number) => {
-        const cellW = sprite.naturalWidth / 5;
-        const cellH = sprite.naturalHeight / 2;
         const frame = moving ? 1 + (Math.floor(frameClock / 0.14) % 3) : 0;
+        const frameImage = playerFramesRef.current[selectedCharacter][frame];
+        if (!frameImage) return;
         const drawH = Math.min(height * 0.48, 390);
-        const drawW = drawH * (cellW / cellH);
+        const drawW = drawH * (frameImage.width / frameImage.height);
         ctx.globalAlpha = alpha;
-        ctx.drawImage(sprite, frame * cellW, 0, cellW, cellH, -drawW / 2, -drawH, drawW, drawH);
+        ctx.drawImage(frameImage, -drawW / 2, -drawH, drawW, drawH);
       };
       const drawLeaning = (alpha: number) => {
-        const pose = drunkPoseRefs.current.forward;
+        const pose = drunkPoseRefs.current[selectedCharacter];
         if (!pose?.complete || !pose.naturalWidth) return;
         const drawH = Math.min(height * 0.48, 390);
         const drawW = drawH * (pose.naturalWidth / pose.naturalHeight);
@@ -488,9 +516,7 @@ export default function BarGame() {
         if (item.y > playerY - playerHeight && item.y < playerY && Math.abs(item.x - playerX) < 82) {
           items.splice(i, 1);
           localScore += item.kind === "drink" ? 10 : 5;
-          const drunkChange = item.kind === "drink"
-            ? (item.variant % 2 === 0 ? 5 : 10)
-            : ITEM_EFFECT[item.kind];
+          const drunkChange = item.kind === "drink" ? 10 : ITEM_EFFECT[item.kind];
           localDrunk = Math.max(0, Math.min(100, localDrunk + drunkChange));
           if (item.kind === "drink") {
             celebrateUntil = elapsed + 1.15;
@@ -509,7 +535,7 @@ export default function BarGame() {
 
       ctx.clearRect(0, 0, width, height);
       ctx.save();
-      const twist = Math.max(0, (intoxication - 0.12) / 0.88);
+      const twist = intoxication < 0.5 ? 0 : 0.12 + ((intoxication - 0.5) / 0.5) * 0.88;
       const pulse = 1.025 + twist * (0.035 + Math.sin(elapsed * 1.7) * 0.012);
       ctx.translate(width / 2, height / 2);
       ctx.rotate(Math.sin(elapsed * 1.35) * twist * 0.018);
@@ -519,7 +545,7 @@ export default function BarGame() {
       const bg = backgroundRef.current;
       if (bg?.complete) ctx.drawImage(bg, 0, 0, width, height);
       drawBackgroundPeople(elapsed < celebrateUntil);
-      drawJackson();
+      drawWalker();
       ctx.save();
       const sway = Math.sin(elapsed * 2.4) * intoxication * 8;
       ctx.translate(sway, Math.cos(elapsed * 1.8) * intoxication * 3);
@@ -556,7 +582,20 @@ export default function BarGame() {
       window.removeEventListener("keyup", keyUp);
       window.removeEventListener("resize", resize);
     };
-  }, [screen, gameRun]);
+  }, [screen, gameRun, selectedCharacter]);
+
+  useEffect(() => {
+    if (screen !== "selection") return;
+    const handleSelectionKey = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase();
+      if (key === "a" || key === "enter") startGame();
+      else if (key === "b" || key === "escape") setScreen("start");
+      else if (key === "arrowleft") setSelectedCharacter("ginaldo");
+      else if (key === "arrowright") setSelectedCharacter("jackson");
+    };
+    window.addEventListener("keydown", handleSelectionKey);
+    return () => window.removeEventListener("keydown", handleSelectionKey);
+  }, [screen, startGame]);
 
   return (
     <main
@@ -592,10 +631,20 @@ export default function BarGame() {
           style={{ backgroundImage: "url('/bar-game/home-background.jpg')" }}
         >
           <div className="absolute inset-0 bg-black/20" />
-          <button onClick={startGame} className="absolute bottom-[max(42px,calc(env(safe-area-inset-bottom)+28px))] left-1/2 z-10 flex min-h-14 -translate-x-1/2 items-center gap-3 rounded-md bg-orange-500 px-10 py-4 text-xl font-black uppercase shadow-[0_6px_0_#9a3412,0_8px_24px_rgba(0,0,0,0.55)] active:translate-y-1 active:shadow-none">
+          <button onClick={() => setScreen("selection")} className="absolute bottom-[max(42px,calc(env(safe-area-inset-bottom)+28px))] left-1/2 z-10 flex min-h-14 -translate-x-1/2 items-center gap-3 rounded-md bg-orange-500 px-10 py-4 text-xl font-black uppercase shadow-[0_6px_0_#9a3412,0_8px_24px_rgba(0,0,0,0.55)] active:translate-y-1 active:shadow-none">
             <Play className="h-6 w-6 fill-current" />
             Jogar
           </button>
+        </section>
+      )}
+
+      {screen === "selection" && (
+        <section className="absolute inset-0 z-30 overflow-hidden bg-[#f4e3b3]">
+          <img src={`/bar-game/selecao-${selectedCharacter}.png`} alt="Seleção de personagem" className="absolute inset-0 h-full w-full object-cover object-center" />
+          <button aria-label="Selecionar Ginaldo" onClick={() => setSelectedCharacter("ginaldo")} className="absolute bottom-[6%] left-[8%] h-[25%] w-[41%]" />
+          <button aria-label="Selecionar Jackson" onClick={() => setSelectedCharacter("jackson")} className="absolute bottom-[6%] right-[8%] h-[25%] w-[41%]" />
+          <button aria-label="Confirmar personagem" onClick={startGame} className="absolute bottom-0 left-[11%] h-[7%] w-[34%]" />
+          <button aria-label="Voltar" onClick={() => setScreen("start")} className="absolute bottom-0 right-[11%] h-[7%] w-[34%]" />
         </section>
       )}
 
