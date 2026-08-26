@@ -215,8 +215,8 @@ export default function BarGame() {
     });
     const audio = {
       cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
-      music: new Audio("/bar-game/audio/musica-fundo.mp3"),
-      menu: new Audio("/bar-game/audio/musica-menu.mp3"),
+      music: new Audio("/bar-game/audio/musica-fundo.mp3?v=android-audio-2"),
+      menu: new Audio("/bar-game/audio/musica-menu.mp3?v=android-audio-2"),
       uiButton: new Audio("/bar-game/audio/botao.mp3"),
       uiSelect: new Audio("/bar-game/audio/select.wav"),
       burp: new Audio("/bar-game/audio/arroto.mp3"),
