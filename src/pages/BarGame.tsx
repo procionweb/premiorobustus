@@ -45,7 +45,9 @@ export default function BarGame() {
     if (gameStartingRef.current) return;
     gameStartingRef.current = true;
     musicShouldPlayRef.current = false;
-    Object.values(audioRefs.current).forEach((audio) => {
+    ["cheer", "music", "menu", "burp", "drink"].forEach((key) => {
+      const audio = audioRefs.current[key];
+      if (!audio) return;
       try { audio.pause(); audio.currentTime = 0; } catch {}
     });
     activeEffectsRef.current.forEach((audio) => audio.pause());
@@ -220,7 +222,7 @@ export default function BarGame() {
       burp: new Audio("/bar-game/audio/arroto.mp3"),
       drink: new Audio("/bar-game/audio/bebida.mp3"),
     };
-    audio.music.loop = false;
+    audio.music.loop = true;
     audio.music.volume = 0.18;
     audio.menu.loop = true;
     audio.menu.volume = 0.2;
@@ -229,20 +231,17 @@ export default function BarGame() {
     audio.cheer.volume = 0.2;
     audio.burp.volume = 0.95;
     audio.drink.volume = 0.95;
-    const keepMusicPlaying = () => {
-      if (!musicShouldPlayRef.current || !audio.music.paused) return;
-      window.setTimeout(() => {
-        if (musicShouldPlayRef.current && audio.music.paused) void audio.music.play().catch(() => {});
-      }, 80);
+    const resumeActiveMusic = () => {
+      if (document.hidden) return;
+      if (musicShouldPlayRef.current && audio.music.paused) void audio.music.play().catch(() => {});
+      if (!musicShouldPlayRef.current && audio.menu.paused) void audio.menu.play().catch(() => {});
     };
-    audio.music.addEventListener("pause", keepMusicPlaying);
-    audio.music.addEventListener("ended", keepMusicPlaying);
+    document.addEventListener("visibilitychange", resumeActiveMusic);
     Object.values(audio).forEach((item) => { item.preload = "auto"; item.load(); });
     audioRefs.current = audio;
     return () => {
       musicShouldPlayRef.current = false;
-      audio.music.removeEventListener("pause", keepMusicPlaying);
-      audio.music.removeEventListener("ended", keepMusicPlaying);
+      document.removeEventListener("visibilitychange", resumeActiveMusic);
       Object.values(audio).forEach((item) => item.pause());
       activeEffectsRef.current.forEach((item) => item.pause());
       activeEffectsRef.current.clear();
@@ -416,7 +415,7 @@ export default function BarGame() {
       x: number,
     ) => {
       if (!frame) return;
-      let drawH = Math.min(height * 0.205, 168);
+      let drawH = Math.min(height * 0.225, 182);
       let drawW = drawH * (frame.width / frame.height);
       const maxWidth = width * 0.235;
       if (drawW > maxWidth) {
@@ -713,7 +712,9 @@ export default function BarGame() {
 
       if (secondsLeft <= 0 || (fellAt >= 0 && elapsed - fellAt >= 1.35)) {
         musicShouldPlayRef.current = false;
-        Object.values(audioRefs.current).forEach((audio) => {
+        ["cheer", "music", "burp", "drink"].forEach((key) => {
+          const audio = audioRefs.current[key];
+          if (!audio) return;
           try { audio.pause(); audio.currentTime = 0; } catch {}
         });
         activeEffectsRef.current.forEach((audio) => audio.pause());
@@ -745,7 +746,10 @@ export default function BarGame() {
     if (screen !== "selection") return;
     const handleSelectionKey = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
-      if (key === "a" || key === "enter") startGame();
+      if (key === "a" || key === "enter") {
+        playUiSound("button");
+        window.setTimeout(startGame, 140);
+      }
       else if (key === "b" || key === "escape") setScreen("start");
       else if (key === "arrowleft") {
         playUiSound("select");
@@ -793,6 +797,8 @@ export default function BarGame() {
           <button
             onClick={() => {
               playUiSound("button");
+              const menu = audioRefs.current.menu;
+              if (menu?.paused) void menu.play().catch(() => {});
               setScreen("selection");
             }}
             className="absolute bottom-[max(34px,calc(env(safe-area-inset-bottom)+22px))] left-1/2 z-10 flex min-h-16 -translate-x-1/2 items-center gap-3 rounded-md border-2 border-amber-300 bg-[#101827]/95 px-12 py-4 text-xl font-black uppercase text-amber-100 shadow-[0_0_0_3px_#713f12,0_7px_0_#422006,0_0_28px_rgba(37,99,235,0.75)] transition-transform hover:scale-105 active:translate-y-1 active:shadow-[0_0_0_3px_#713f12,0_2px_0_#422006]"
@@ -808,7 +814,7 @@ export default function BarGame() {
           <img src={`/bar-game/selecao-${selectedCharacter}.png`} alt="Seleção de personagem" className="absolute inset-0 h-full w-full object-cover object-center" />
           <button aria-label="Selecionar Ginaldo" onClick={() => { playUiSound("select"); setSelectedCharacter("ginaldo"); }} className="absolute bottom-[6%] left-[8%] h-[25%] w-[41%]" />
           <button aria-label="Selecionar Jackson" onClick={() => { playUiSound("select"); setSelectedCharacter("jackson"); }} className="absolute bottom-[6%] right-[8%] h-[25%] w-[41%]" />
-          <button aria-label="Confirmar personagem" onClick={() => { playUiSound("button"); startGame(); }} className="absolute bottom-0 left-[11%] h-[7%] w-[34%]" />
+          <button aria-label="Confirmar personagem" onClick={() => { playUiSound("button"); window.setTimeout(startGame, 140); }} className="absolute bottom-0 left-[11%] h-[7%] w-[34%]" />
           <button aria-label="Voltar" onClick={() => { playUiSound("button"); setScreen("start"); }} className="absolute bottom-0 right-[11%] h-[7%] w-[34%]" />
         </section>
       )}
