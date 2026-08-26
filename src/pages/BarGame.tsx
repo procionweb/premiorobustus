@@ -35,22 +35,10 @@ export default function BarGame() {
   const [remaining, setRemaining] = useState(GAME_SECONDS);
 
   const playUiSound = useCallback((kind: "button" | "select") => {
-    const AudioContextClass = window.AudioContext;
-    if (!AudioContextClass) return;
-    const context = new AudioContextClass();
-    const gain = context.createGain();
-    gain.gain.setValueAtTime(0.0001, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(kind === "button" ? 0.16 : 0.1, context.currentTime + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + (kind === "button" ? 0.12 : 0.18));
-    gain.connect(context.destination);
-    const oscillator = context.createOscillator();
-    oscillator.type = kind === "button" ? "square" : "sine";
-    oscillator.frequency.setValueAtTime(kind === "button" ? 190 : 520, context.currentTime);
-    if (kind === "select") oscillator.frequency.exponentialRampToValueAtTime(760, context.currentTime + 0.12);
-    oscillator.connect(gain);
-    oscillator.start();
-    oscillator.stop(context.currentTime + (kind === "button" ? 0.12 : 0.18));
-    oscillator.addEventListener("ended", () => void context.close(), { once: true });
+    const audio = audioRefs.current[kind === "button" ? "uiButton" : "uiSelect"];
+    if (!audio) return;
+    try { audio.pause(); audio.currentTime = 0; } catch {}
+    void audio.play().catch(() => {});
   }, []);
 
   const startGame = useCallback(() => {
@@ -227,6 +215,8 @@ export default function BarGame() {
       cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
       music: new Audio("/bar-game/audio/musica-fundo.mp3"),
       menu: new Audio("/bar-game/audio/musica-menu.mp3"),
+      uiButton: new Audio("/bar-game/audio/botao.mp3"),
+      uiSelect: new Audio("/bar-game/audio/select.wav"),
       burp: new Audio("/bar-game/audio/arroto.mp3"),
       drink: new Audio("/bar-game/audio/bebida.mp3"),
     };
@@ -234,6 +224,8 @@ export default function BarGame() {
     audio.music.volume = 0.18;
     audio.menu.loop = true;
     audio.menu.volume = 0.2;
+    audio.uiButton.volume = 0.75;
+    audio.uiSelect.volume = 0.72;
     audio.cheer.volume = 0.2;
     audio.burp.volume = 0.95;
     audio.drink.volume = 0.95;
