@@ -1,3 +1,4 @@
+import { Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Screen = "start" | "selection" | "playing";
@@ -79,17 +80,18 @@ export default function BarGame() {
       drunkPoseRefs.current[key as Character] = image;
     });
     const people = [1, 2, 3, 4].map((number) => `/bar-game/figurante-${number}.png`);
-    const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1, rows = 2) => {
+    const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1, rows = 2, heightScale = 1) => {
       const baseCellW = image.naturalWidth / columns;
       const cellW = Math.floor(baseCellW * widthScale);
-      const cellH = Math.floor(image.naturalHeight / rows);
+      const baseCellH = image.naturalHeight / rows;
+      const cellH = Math.min(image.naturalHeight - Math.floor(row * baseCellH), Math.floor(baseCellH * heightScale));
       const sourceX = Math.max(0, Math.min(image.naturalWidth - cellW, column * baseCellW + (baseCellW - cellW) / 2));
       const frame = document.createElement("canvas");
       frame.width = cellW;
       frame.height = cellH;
       const frameCtx = frame.getContext("2d", { willReadFrequently: true });
       if (!frameCtx) return frame;
-      frameCtx.drawImage(image, sourceX, row * cellH, cellW, cellH, 0, 0, cellW, cellH);
+      frameCtx.drawImage(image, sourceX, row * baseCellH, cellW, cellH, 0, 0, cellW, cellH);
       const pixels = frameCtx.getImageData(0, 0, cellW, cellH);
       const total = cellW * cellH;
       const labels = new Int32Array(total);
@@ -157,7 +159,7 @@ export default function BarGame() {
     ginaldoWalker.src = "/bar-game/ginaldo-apoiador-sprites.png";
     walkerSpriteRefs.current.ginaldo = ginaldoWalker;
     ginaldoWalker.onload = () => {
-      walkerFramesRef.current.ginaldo = [2, 2, 2, 2].map((column) => isolatePerson(ginaldoWalker, column, 5, 0, 1.35));
+      walkerFramesRef.current.ginaldo = [1, 2, 3, 4].map((column) => isolatePerson(ginaldoWalker, column, 5, 0, 1.42, 2, 1.14));
     };
     const bottleSources = [
       "cafe-fino.png", "cafe-trufado.png", "canela.png", "chocolate.png", "limoncello.png",
@@ -386,25 +388,15 @@ export default function BarGame() {
         ? startX + (endX - startX) * progress
         : endX - (endX - startX) * progress;
       const floorY = height * 0.67;
-      const framePosition = frameClock / 0.24;
+      const framePosition = frameClock / 0.14;
       const frameIndex = Math.floor(framePosition) % frames.length;
-      const nextFrameIndex = (frameIndex + 1) % frames.length;
-      const rawBlend = framePosition - Math.floor(framePosition);
-      const frameBlend = rawBlend * rawBlend * (3 - 2 * rawBlend);
       const walkWave = Math.sin(framePosition * Math.PI);
       const bob = Math.abs(walkWave) * 3;
 
       ctx.save();
       ctx.translate(x, bob);
       if (!goingRight) ctx.scale(-1, 1);
-      if (selectedCharacter === "ginaldo") {
-        ctx.rotate(walkWave * 0.012);
-        ctx.scale(1 - Math.abs(walkWave) * 0.008, 1 + Math.abs(walkWave) * 0.008);
-      }
-      ctx.globalAlpha = 1 - frameBlend;
       ctx.drawImage(frames[frameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
-      ctx.globalAlpha = frameBlend;
-      ctx.drawImage(frames[nextFrameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
       ctx.restore();
 
       const centerDistance = Math.abs(x - width / 2);
@@ -643,10 +635,12 @@ export default function BarGame() {
         <section className="absolute inset-0 z-20 overflow-hidden text-center">
           <img src="/bar-game/home-background.jpg" alt="Bhaskar Licores" className="absolute inset-0 h-full w-full object-cover object-center" />
           <button
-            aria-label="Jogar"
             onClick={() => setScreen("selection")}
-            className="absolute bottom-[10%] left-[34%] z-10 h-[58%] w-[32%] rounded-full bg-transparent transition-[filter,transform] hover:scale-[1.02] hover:drop-shadow-[0_0_18px_rgba(251,191,36,0.75)] active:scale-[0.99]"
-          />
+            className="absolute bottom-[max(34px,calc(env(safe-area-inset-bottom)+22px))] left-1/2 z-10 flex min-h-16 -translate-x-1/2 items-center gap-3 rounded-md border-2 border-amber-300 bg-[#101827]/95 px-12 py-4 text-xl font-black uppercase text-amber-100 shadow-[0_0_0_3px_#713f12,0_7px_0_#422006,0_0_28px_rgba(37,99,235,0.75)] transition-transform hover:scale-105 active:translate-y-1 active:shadow-[0_0_0_3px_#713f12,0_2px_0_#422006]"
+          >
+            <Play className="h-7 w-7 fill-amber-300 text-amber-300" />
+            Jogar
+          </button>
         </section>
       )}
 
