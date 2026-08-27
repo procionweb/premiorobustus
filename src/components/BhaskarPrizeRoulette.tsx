@@ -115,7 +115,7 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
           {prizes.map((prize, index) => {
             const angle = (index + 0.5) * (360 / prizes.length);
             return (
-              <span key={prize.id} className="absolute left-1/2 top-1/2 z-10 w-[29%] origin-left text-center font-serif text-[9px] font-black uppercase leading-[1.08] tracking-wide text-[#f5d47e]" style={{ transform: `rotate(${angle - 90}deg) translateX(72%)` }}>
+              <span key={prize.id} className="absolute left-1/2 top-1/2 z-10 w-[30%] origin-left text-center font-serif text-[9px] font-black uppercase leading-[1.08] tracking-wide text-[#f5d47e]" style={{ transform: `rotate(${angle - 90}deg) translateX(63%)` }}>
                 <span className="inline-block max-w-full break-words [text-shadow:0_1px_1px_#000,0_0_3px_#000,0_0_5px_#000]">{prize.name}</span>
               </span>
             );
@@ -128,14 +128,14 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
 
       {!chosen && <div className="absolute bottom-[5.5%] left-1/2 z-20 w-[68%] max-w-sm -translate-x-1/2 text-[11px] font-black uppercase tracking-[0.14em] text-[#e9c36d] [text-shadow:0_1px_3px_#000]">{spinning ? "A roleta está girando..." : prizes.length ? "Arraste a roleta e solte" : "Carregando prêmios..."}</div>}
 
-      {chosen && (
-        <div className="absolute left-1/2 top-[71.5%] z-30 w-[76%] max-w-sm -translate-x-1/2 px-4 py-3">
+      {chosen && <>
+        <div className="absolute left-1/2 top-[72%] z-30 w-[76%] max-w-sm -translate-x-1/2 px-4 py-2">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#dcae52]">Seu prêmio</p>
           <strong className="mt-1 block font-serif text-xl font-black uppercase tracking-wide text-[#f7d77c] drop-shadow-[0_2px_2px_#000]">{chosen.name}</strong>
           <p className="mx-auto mt-1.5 max-w-sm text-xs font-semibold leading-snug text-[#f7e7bd]">{chosen.description}</p>
-          <button onClick={onFinish} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-md border border-[#e2b65b] bg-[#8b4d12] px-5 text-sm font-black uppercase text-[#fff0bd] shadow-[0_3px_0_#3b2109] active:translate-y-0.5 active:shadow-none"><RotateCcw size={18} /> Voltar ao início</button>
         </div>
-      )}
+        <button onClick={onFinish} className="absolute bottom-[5.7%] left-1/2 z-30 inline-flex min-h-12 w-[58%] -translate-x-1/2 items-center justify-center gap-2 px-3 font-serif text-sm font-black uppercase text-[#f2cf79] [text-shadow:0_1px_3px_#000] active:translate-y-0.5"><RotateCcw size={17} /> Voltar ao início</button>
+      </>}
     </section>
   );
 }
