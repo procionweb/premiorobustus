@@ -369,6 +369,7 @@ export default function BarGame() {
     let balancePush = (Math.random() < 0.5 ? -1 : 1) * 0.08;
     let nextBalanceShift = 1.2;
     let balanceActivatedAt = -1;
+    let balanceDangerTime = 0;
     let fellAt = -1;
     const keys = new Set<string>();
     const items: FallingItem[] = [];
@@ -688,6 +689,7 @@ export default function BarGame() {
       if (!balanceActive) {
         balance = 0;
         balanceVelocity = 0;
+        balanceDangerTime = 0;
         balanceActivatedAt = -1;
       } else if (balanceActivatedAt < 0) {
         balanceActivatedAt = elapsed;
@@ -696,16 +698,17 @@ export default function BarGame() {
       if (fellAt < 0 && balanceActive) {
         const activationRamp = Math.min(1, (elapsed - balanceActivatedAt) / 2.6);
         if (elapsed >= nextBalanceShift) {
-          balancePush = (Math.random() * 2 - 1) * (0.07 + intoxication * 0.24);
-          nextBalanceShift = elapsed + 0.95 + Math.random() * 1.25;
+          balancePush = (Math.random() * 2 - 1) * (0.04 + intoxication * 0.13);
+          nextBalanceShift = elapsed + 1.4 + Math.random() * 1.5;
         }
-        const instability = (0.05 + intoxication * 0.18) * activationRamp;
+        const instability = (0.025 + intoxication * 0.08) * activationRamp;
         balanceVelocity += (balancePush * activationRamp + balance * instability) * dt;
-        balanceVelocity *= Math.pow(0.18, dt);
-        balanceVelocity = Math.max(-0.3, Math.min(0.3, balanceVelocity));
-        balance += balanceVelocity * dt - controlDirection * 0.82 * dt;
+        balanceVelocity *= Math.pow(0.12, dt);
+        balanceVelocity = Math.max(-0.2, Math.min(0.2, balanceVelocity));
+        balance += balanceVelocity * dt - controlDirection * 1.12 * dt;
         balance = Math.max(-1.05, Math.min(1.05, balance));
-        if (Math.abs(balance) >= 1) fellAt = elapsed;
+        balanceDangerTime = Math.abs(balance) >= 0.97 ? balanceDangerTime + dt : 0;
+        if (balanceDangerTime >= 0.65) fellAt = elapsed;
       }
       if (keyboardDirection !== 0) {
         targetX = Math.max(45, Math.min(width - 45, targetX + keyboardDirection * 330 * dt));
