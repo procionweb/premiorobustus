@@ -1,5 +1,7 @@
 import { Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { NativeAudio } from "@capacitor-community/native-audio";
 
 type Screen = "start" | "selection" | "playing";
 type Character = "jackson" | "ginaldo";
@@ -7,6 +9,9 @@ type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water
 
 const GAME_SECONDS = 30;
 const ITEM_EFFECT = { water: -10, medicine: -16, glucose: -22 } as const;
+const USE_NATIVE_MUSIC = Capacitor.isNativePlatform();
+const NATIVE_MENU_ID = "bhaskar-menu-music";
+const NATIVE_GAME_ID = "bhaskar-game-music";
 
 export default function BarGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -27,12 +32,54 @@ export default function BarGame() {
   const gameStartingRef = useRef(false);
   const activeEffectsRef = useRef<Set<HTMLAudioElement>>(new Set());
   const musicShouldPlayRef = useRef(false);
+  const nativeMusicReadyRef = useRef<Promise<void> | null>(null);
+  const nativeMusicModeRef = useRef<"menu" | "game" | "stopped">("stopped");
   const [screen, setScreen] = useState<Screen>("start");
   const [selectedCharacter, setSelectedCharacter] = useState<Character>("jackson");
   const [gameRun, setGameRun] = useState(0);
   const [score, setScore] = useState(0);
   const [drunk, setDrunk] = useState(0);
   const [remaining, setRemaining] = useState(GAME_SECONDS);
+
+  const ensureNativeMusic = useCallback(() => {
+    if (!USE_NATIVE_MUSIC) return Promise.resolve();
+    if (!nativeMusicReadyRef.current) {
+      nativeMusicReadyRef.current = Promise.all([
+        NativeAudio.preload({
+          assetId: NATIVE_MENU_ID,
+          assetPath: "public/bar-game/audio/musica-menu.mp3",
+          audioChannelNum: 1,
+          isUrl: false,
+          volume: 0.2,
+        }),
+        NativeAudio.preload({
+          assetId: NATIVE_GAME_ID,
+          assetPath: "public/bar-game/audio/musica-fundo.mp3",
+          audioChannelNum: 1,
+          isUrl: false,
+          volume: 0.18,
+        }),
+      ]).then(() => undefined);
+    }
+    return nativeMusicReadyRef.current;
+  }, []);
+
+  const switchNativeMusic = useCallback((mode: "menu" | "game" | "stopped") => {
+    if (!USE_NATIVE_MUSIC) return;
+    if (nativeMusicModeRef.current === mode) return;
+    nativeMusicModeRef.current = mode;
+    void ensureNativeMusic().then(async () => {
+      if (nativeMusicModeRef.current !== mode) return;
+      await Promise.allSettled([
+        NativeAudio.stop({ assetId: NATIVE_MENU_ID }),
+        NativeAudio.stop({ assetId: NATIVE_GAME_ID }),
+      ]);
+      if (mode === "stopped" || nativeMusicModeRef.current !== mode) return;
+      const assetId = mode === "menu" ? NATIVE_MENU_ID : NATIVE_GAME_ID;
+      await NativeAudio.play({ assetId });
+      await NativeAudio.loop({ assetId });
+    }).catch((error) => console.error("Falha ao iniciar musica nativa", error));
+  }, [ensureNativeMusic]);
 
   const playUiSound = useCallback((kind: "button" | "select") => {
     const audio = audioRefs.current[kind === "button" ? "uiButton" : "uiSelect"];
@@ -69,12 +116,15 @@ export default function BarGame() {
     setGameRun((run) => run + 1);
     setScreen("playing");
     const music = audioRefs.current.music;
-    if (music) {
+    if (USE_NATIVE_MUSIC) {
+      musicShouldPlayRef.current = true;
+      switchNativeMusic("game");
+    } else if (music) {
       musicShouldPlayRef.current = true;
       music.currentTime = 0;
       void music.play().catch(() => {});
     }
-  }, []);
+  }, [switchNativeMusic]);
 
   useEffect(() => {
     const bg = new Image();
@@ -232,6 +282,7 @@ export default function BarGame() {
     audio.burp.volume = 0.95;
     audio.drink.volume = 0.95;
     const resumeActiveMusic = () => {
+      if (USE_NATIVE_MUSIC) return;
       if (document.hidden) return;
       if (musicShouldPlayRef.current && audio.music.paused) void audio.music.play().catch(() => {});
       if (!musicShouldPlayRef.current && audio.menu.paused) void audio.menu.play().catch(() => {});
@@ -251,6 +302,10 @@ export default function BarGame() {
   }, []);
 
   useEffect(() => {
+    if (USE_NATIVE_MUSIC) {
+      switchNativeMusic(screen === "playing" ? "game" : "menu");
+      return;
+    }
     const menu = audioRefs.current.menu;
     if (!menu) return;
     if (screen === "playing") {
@@ -268,7 +323,20 @@ export default function BarGame() {
       window.removeEventListener("pointerdown", startMenuMusic);
       window.removeEventListener("keydown", startMenuMusic);
     };
-  }, [screen]);
+  }, [screen, switchNativeMusic]);
+
+  useEffect(() => {
+    if (!USE_NATIVE_MUSIC) return;
+    void ensureNativeMusic().catch((error) => console.error("Falha ao carregar musica nativa", error));
+    return () => {
+      nativeMusicModeRef.current = "stopped";
+      void Promise.allSettled([
+        NativeAudio.unload({ assetId: NATIVE_MENU_ID }),
+        NativeAudio.unload({ assetId: NATIVE_GAME_ID }),
+      ]);
+      nativeMusicReadyRef.current = null;
+    };
+  }, [ensureNativeMusic]);
 
   useEffect(() => {
     if (screen !== "playing") return;
@@ -714,6 +782,7 @@ export default function BarGame() {
 
       if (secondsLeft <= 0 || (fellAt >= 0 && elapsed - fellAt >= 1.35)) {
         musicShouldPlayRef.current = false;
+        if (USE_NATIVE_MUSIC) switchNativeMusic("menu");
         ["cheer", "music", "burp", "drink"].forEach((key) => {
           const audio = audioRefs.current[key];
           if (!audio) return;
@@ -742,7 +811,7 @@ export default function BarGame() {
       window.removeEventListener("keyup", keyUp);
       window.removeEventListener("resize", resize);
     };
-  }, [screen, gameRun, selectedCharacter]);
+  }, [screen, gameRun, selectedCharacter, switchNativeMusic]);
 
   useEffect(() => {
     if (screen !== "selection") return;
@@ -800,7 +869,7 @@ export default function BarGame() {
             onClick={() => {
               playUiSound("button");
               const menu = audioRefs.current.menu;
-              if (menu?.paused) void menu.play().catch(() => {});
+              if (!USE_NATIVE_MUSIC && menu?.paused) void menu.play().catch(() => {});
               setScreen("selection");
             }}
             className="absolute bottom-[max(34px,calc(env(safe-area-inset-bottom)+22px))] left-1/2 z-10 flex min-h-16 -translate-x-1/2 items-center gap-3 rounded-md border-2 border-amber-300 bg-[#101827]/95 px-12 py-4 text-xl font-black uppercase text-amber-100 shadow-[0_0_0_3px_#713f12,0_7px_0_#422006,0_0_28px_rgba(37,99,235,0.75)] transition-transform hover:scale-105 active:translate-y-1 active:shadow-[0_0_0_3px_#713f12,0_2px_0_#422006]"
