@@ -40,7 +40,7 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
       const end = (index + 1) * 360 / count;
       return `${colors[index % colors.length]} ${start}deg ${end}deg`;
     }).join(",");
-    return `radial-gradient(circle,transparent 0 20%,rgba(232,174,67,.9) 20.5% 21.5%,#160d05 22% 24%,transparent 24.5%),repeating-conic-gradient(from -1deg,rgba(247,205,109,.9) 0deg 1.2deg,transparent 1.2deg ${360 / count}deg),conic-gradient(${sectors})`;
+    return `radial-gradient(circle at 36% 30%,rgba(255,222,142,.12),transparent 35%),radial-gradient(circle,transparent 0 20%,rgba(232,174,67,.9) 20.5% 21.5%,#160d05 22% 24%,transparent 24.5%),repeating-radial-gradient(circle,transparent 0 13px,rgba(246,198,92,.055) 14px 15px),repeating-conic-gradient(from -1deg,rgba(247,205,109,.9) 0deg 1.2deg,transparent 1.2deg ${360 / count}deg),conic-gradient(${sectors})`;
   }, [prizes]);
 
   const beginDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -93,9 +93,10 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
 
   return (
     <section className="absolute inset-0 z-50 overflow-hidden bg-[#080808] text-center text-amber-100">
-      <div className="absolute inset-0 bg-[url('/bar-game/roulette-background.png')] bg-cover bg-center" />
-      <div className="absolute left-1/2 top-[15.5%] z-20 -translate-x-1/2">
-        <span className="whitespace-nowrap rounded-md border border-amber-400/50 bg-[#03101c]/90 px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] text-amber-200 shadow-[0_0_14px_rgba(245,158,11,.28)]">Fim de jogo · {score} pontos</span>
+      <div className="absolute inset-0 bg-[url('/bar-game/roulette-background-v2.png')] bg-cover bg-center" />
+      <h1 className="absolute left-1/2 top-[5.8%] z-20 -translate-x-1/2 font-serif text-[clamp(30px,9vw,42px)] font-black uppercase tracking-[0.13em] text-[#efc76d] [text-shadow:0_2px_2px_#000,0_0_12px_rgba(217,154,50,.38)]">Roleta</h1>
+      <div className="absolute left-1/2 top-[13.4%] z-20 -translate-x-1/2">
+        <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.16em] text-[#e9c36d] [text-shadow:0_1px_3px_#000]">Fim de jogo · {score} pontos</span>
       </div>
 
       <div className="absolute left-1/2 top-[21.5%] z-10 h-[min(81vw,345px)] w-[min(81vw,345px)] -translate-x-1/2">
@@ -114,8 +115,8 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
           {prizes.map((prize, index) => {
             const angle = (index + 0.5) * (360 / prizes.length);
             return (
-              <span key={prize.id} className="absolute left-1/2 top-1/2 z-10 w-[28%] origin-left text-center text-[8px] font-black uppercase leading-[1.08] text-[#fff0b5]" style={{ transform: `rotate(${angle - 90}deg) translateX(78%)` }}>
-                <span className="inline-block max-w-full break-words rounded border border-[#e6b850]/55 bg-[#03070b]/80 px-1 py-1 shadow-[0_1px_5px_#000] [text-shadow:0_1px_2px_#000]">{prize.name}</span>
+              <span key={prize.id} className="absolute left-1/2 top-1/2 z-10 w-[29%] origin-left text-center font-serif text-[9px] font-black uppercase leading-[1.08] tracking-wide text-[#f5d47e]" style={{ transform: `rotate(${angle - 90}deg) translateX(72%)` }}>
+                <span className="inline-block max-w-full break-words [text-shadow:0_1px_1px_#000,0_0_3px_#000,0_0_5px_#000]">{prize.name}</span>
               </span>
             );
           })}
@@ -125,10 +126,10 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
         </div>
       </div>
 
-      {!chosen && <div className="absolute bottom-[9.5%] left-1/2 z-20 w-[78%] max-w-sm -translate-x-1/2 rounded-md border border-[#b87524] bg-[#03101c]/90 px-5 py-3 text-xs font-black uppercase tracking-[0.14em] text-[#f5d98d] shadow-[0_0_18px_rgba(245,158,11,.2)]">{spinning ? "A roleta está girando..." : prizes.length ? "Arraste a roleta e solte" : "Carregando prêmios..."}</div>}
+      {!chosen && <div className="absolute bottom-[5.5%] left-1/2 z-20 w-[68%] max-w-sm -translate-x-1/2 text-[11px] font-black uppercase tracking-[0.14em] text-[#e9c36d] [text-shadow:0_1px_3px_#000]">{spinning ? "A roleta está girando..." : prizes.length ? "Arraste a roleta e solte" : "Carregando prêmios..."}</div>}
 
       {chosen && (
-        <div className="absolute bottom-[3.2%] left-1/2 z-30 w-[88%] max-w-sm -translate-x-1/2 rounded-md border-2 border-[#c88927] bg-[linear-gradient(180deg,rgba(3,24,45,.97),rgba(4,12,24,.98))] px-4 py-3 shadow-[0_0_0_2px_#3b2109,0_0_24px_rgba(245,158,11,.28)]">
+        <div className="absolute left-1/2 top-[71.5%] z-30 w-[76%] max-w-sm -translate-x-1/2 px-4 py-3">
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#dcae52]">Seu prêmio</p>
           <strong className="mt-1 block font-serif text-xl font-black uppercase tracking-wide text-[#f7d77c] drop-shadow-[0_2px_2px_#000]">{chosen.name}</strong>
           <p className="mx-auto mt-1.5 max-w-sm text-xs font-semibold leading-snug text-[#f7e7bd]">{chosen.description}</p>
