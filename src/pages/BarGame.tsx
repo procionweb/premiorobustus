@@ -238,11 +238,11 @@ export default function BarGame() {
       walkerFramesRef.current.jackson = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0, 1.42));
     };
     const ginaldoWalker = new Image();
-    ginaldoWalker.src = "/bar-game/eduardo-walker-sprites-v2.png";
+    ginaldoWalker.src = "/bar-game/eduardo-walker-sprites-v3.png";
     walkerSpriteRefs.current.ginaldo = ginaldoWalker;
     ginaldoWalker.onload = () => {
-      walkerFramesRef.current.ginaldo = Array.from({ length: 7 }, (_, column) =>
-        isolatePerson(ginaldoWalker, column, 7, 0, 1.3, 3, 1.08),
+      walkerFramesRef.current.ginaldo = [0, 1].flatMap((row) =>
+        Array.from({ length: 16 }, (_, column) => isolatePerson(ginaldoWalker, column, 16, row, 1.22, 2, 1)),
       );
     };
     const bottleSources = [
@@ -517,7 +517,7 @@ export default function BarGame() {
       if (!sprite?.complete || !sprite.naturalWidth) return;
       const frames = walkerFramesRef.current[selectedCharacter];
       if (!frames.length) return;
-      const halfTrip = 8.5;
+      const halfTrip = selectedCharacter === "ginaldo" ? 5.6 : 8.5;
       const cycle = elapsed % (halfTrip * 2);
       const goingRight = cycle < halfTrip;
       const progress = goingRight ? cycle / halfTrip : (cycle - halfTrip) / halfTrip;
@@ -525,20 +525,32 @@ export default function BarGame() {
       const drawW = drawH * (frames[0].width / frames[0].height);
       const startX = -drawW * 0.7;
       const endX = width + drawW * 0.7;
-      const x = goingRight
-        ? startX + (endX - startX) * progress
-        : endX - (endX - startX) * progress;
+      const interactionStart = 5 / 16;
+      const interactionEnd = 12 / 16;
+      const travelProgress = progress < interactionStart
+        ? (progress / interactionStart) * 0.5
+        : progress < interactionEnd
+          ? 0.5
+          : 0.5 + ((progress - interactionEnd) / (1 - interactionEnd)) * 0.5;
+      const x = selectedCharacter === "ginaldo"
+        ? goingRight
+          ? startX + (endX - startX) * travelProgress
+          : endX - (endX - startX) * travelProgress
+        : goingRight
+          ? startX + (endX - startX) * progress
+          : endX - (endX - startX) * progress;
       const floorY = height * 0.67;
-      const frameDuration = selectedCharacter === "ginaldo" ? 0.105 : 0.14;
-      const framePosition = frameClock / frameDuration;
-      const frameIndex = Math.floor(framePosition) % frames.length;
+      const framePosition = selectedCharacter === "ginaldo" ? progress * 16 : frameClock / 0.14;
+      const frameOffset = selectedCharacter === "ginaldo" && !goingRight ? 16 : 0;
+      const directionFrameCount = selectedCharacter === "ginaldo" ? 16 : frames.length;
+      const frameIndex = frameOffset + Math.min(directionFrameCount - 1, Math.floor(framePosition) % directionFrameCount);
       const walkWave = Math.sin(framePosition * Math.PI);
       const bob = Math.abs(walkWave) * (selectedCharacter === "ginaldo" ? 2.5 : 3);
       const bodySway = selectedCharacter === "ginaldo" ? Math.sin(framePosition * Math.PI) * 0.006 : 0;
 
       ctx.save();
       ctx.translate(x, bob);
-      if (!goingRight) ctx.scale(-1, 1);
+      if (!goingRight && selectedCharacter !== "ginaldo") ctx.scale(-1, 1);
       ctx.rotate(bodySway);
       ctx.drawImage(frames[frameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
       ctx.restore();
