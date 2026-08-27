@@ -238,10 +238,12 @@ export default function BarGame() {
       walkerFramesRef.current.jackson = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0, 1.42));
     };
     const ginaldoWalker = new Image();
-    ginaldoWalker.src = "/bar-game/ginaldo-apoiador-sprites.png";
+    ginaldoWalker.src = "/bar-game/eduardo-walker-sprites.png";
     walkerSpriteRefs.current.ginaldo = ginaldoWalker;
     ginaldoWalker.onload = () => {
-      walkerFramesRef.current.ginaldo = [1, 2, 3, 4].map((column) => isolatePerson(ginaldoWalker, column, 5, 0, 1.42, 2, 1.14));
+      walkerFramesRef.current.ginaldo = Array.from({ length: 7 }, (_, column) =>
+        isolatePerson(ginaldoWalker, column, 7, 0, 1.3, 3, 1.08),
+      );
     };
     const bottleSources = [
       "cafe-fino.png", "cafe-trufado.png", "canela.png", "chocolate.png", "limoncello.png",
@@ -514,7 +516,7 @@ export default function BarGame() {
       const sprite = walkerSpriteRefs.current[selectedCharacter];
       if (!sprite?.complete || !sprite.naturalWidth) return;
       const frames = walkerFramesRef.current[selectedCharacter];
-      if (frames.length !== 4) return;
+      if (!frames.length) return;
       const halfTrip = 8.5;
       const cycle = elapsed % (halfTrip * 2);
       const goingRight = cycle < halfTrip;
@@ -527,7 +529,8 @@ export default function BarGame() {
         ? startX + (endX - startX) * progress
         : endX - (endX - startX) * progress;
       const floorY = height * 0.67;
-      const framePosition = frameClock / 0.14;
+      const frameDuration = selectedCharacter === "ginaldo" ? 0.095 : 0.14;
+      const framePosition = frameClock / frameDuration;
       const frameIndex = Math.floor(framePosition) % frames.length;
       const walkWave = Math.sin(framePosition * Math.PI);
       const bob = Math.abs(walkWave) * 3;
