@@ -32,6 +32,8 @@ export default function BarGame() {
   const remedyImagesRef = useRef<Record<string, HTMLImageElement>>({});
   const fallenPlayerRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
+  const backgroundImagesRef = useRef<HTMLImageElement[]>([]);
+  const currentBackgroundRef = useRef(-1);
   const audioRefs = useRef<Record<string, HTMLAudioElement>>({});
   const gameStartingRef = useRef(false);
   const activeEffectsRef = useRef<Set<HTMLAudioElement>>(new Set());
@@ -118,6 +120,13 @@ export default function BarGame() {
     }
     const nextCast = backgroundDeckRef.current.splice(0, 4);
     backgroundCastRef.current = nextCast;
+    const backgrounds = backgroundImagesRef.current;
+    if (backgrounds.length) {
+      let nextBackground = Math.floor(Math.random() * backgrounds.length);
+      if (backgrounds.length > 1 && nextBackground === currentBackgroundRef.current) nextBackground = (nextBackground + 1) % backgrounds.length;
+      currentBackgroundRef.current = nextBackground;
+      backgroundRef.current = backgrounds[nextBackground];
+    }
     setScore(0);
     setDrunk(0);
     setRemaining(GAME_SECONDS);
@@ -136,9 +145,18 @@ export default function BarGame() {
   }, [switchNativeMusic]);
 
   useEffect(() => {
-    const bg = new Image();
-    bg.src = "/bar-game/bar-background.png";
-    backgroundRef.current = bg;
+    const backgroundSources = [
+      "/bar-game/bar-background.png",
+      "/bar-game/bar-background-2.png",
+      "/bar-game/bar-background-3.png",
+      "/bar-game/bar-background-4.png",
+    ];
+    backgroundImagesRef.current = backgroundSources.map((src) => {
+      const image = new Image();
+      image.src = src;
+      return image;
+    });
+    backgroundRef.current = backgroundImagesRef.current[0];
     ["jackson", "ginaldo"].forEach((character) => {
       const selection = new Image();
       selection.src = `/bar-game/selecao-${character}.png`;
@@ -642,7 +660,7 @@ export default function BarGame() {
       const barW = Math.min(280, width * 0.68);
       const barH = 18;
       const x = (width - barW) / 2;
-      const y = 102;
+      const y = Math.max(138, Math.min(168, height * 0.17));
       ctx.save();
       ctx.fillStyle = "rgba(10,8,6,.82)";
       ctx.strokeStyle = "rgba(255,255,255,.72)";

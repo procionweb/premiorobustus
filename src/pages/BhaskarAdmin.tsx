@@ -86,11 +86,11 @@ export default function BhaskarAdmin() {
               <div key={prize.id} className="rounded-md bg-white/5 p-2">
                 <div className="grid grid-cols-[auto_1fr_70px_auto] items-center gap-2">
                   <input type="checkbox" checked={prize.enabled} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item))} />
-                  <input value={prize.name} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} className="min-w-0 rounded bg-white p-2 text-black" />
-                  <input type="number" min="0" value={prize.weight} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, weight: Number(event.target.value) } : item))} className="rounded bg-white p-2 text-black" title="Peso" />
+                  <input value={prize.name} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} className="min-w-0 rounded border border-white/15 bg-[#2b211c] p-2 text-amber-50 outline-none focus:border-amber-400" />
+                  <input type="number" min="0" value={prize.weight} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, weight: Number(event.target.value) } : item))} className="rounded border border-white/15 bg-[#2b211c] p-2 text-amber-50 outline-none focus:border-amber-400" title="Peso" />
                   <button onClick={() => setPrizes((items) => items.filter((_, itemIndex) => itemIndex !== index))} title="Remover"><Trash2 size={18} /></button>
                 </div>
-                <textarea value={prize.description} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))} rows={2} placeholder="Descrição exibida ao ganhador" className="mt-2 w-full resize-y rounded bg-white p-2 text-sm text-black" />
+                <textarea value={prize.description} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))} rows={2} placeholder="Descrição exibida ao ganhador" className="mt-2 w-full resize-y rounded border border-white/15 bg-[#2b211c] p-2 text-sm text-amber-50 outline-none placeholder:text-amber-100/35 focus:border-amber-400" />
               </div>
             ))}
           </div>
