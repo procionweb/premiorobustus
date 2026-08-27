@@ -39,12 +39,15 @@ export default function BarGame() {
   const nativeMusicReadyRef = useRef<Promise<void> | null>(null);
   const nativeMusicModeRef = useRef<"menu" | "game" | "stopped">("stopped");
   const [screen, setScreen] = useState<Screen>("start");
+  const screenRef = useRef<Screen>("start");
   const [selectedCharacter, setSelectedCharacter] = useState<Character>("jackson");
   const [gameRun, setGameRun] = useState(0);
   const [score, setScore] = useState(0);
   const [drunk, setDrunk] = useState(0);
   const [remaining, setRemaining] = useState(GAME_SECONDS);
   const [finalResult, setFinalResult] = useState<BarGameResult | null>(null);
+
+  useEffect(() => { screenRef.current = screen; }, [screen]);
 
   const ensureNativeMusic = useCallback(() => {
     if (!USE_NATIVE_MUSIC) return Promise.resolve();
@@ -292,8 +295,8 @@ export default function BarGame() {
     const resumeActiveMusic = () => {
       if (USE_NATIVE_MUSIC) return;
       if (document.hidden) return;
-      if (musicShouldPlayRef.current && audio.music.paused) void audio.music.play().catch(() => {});
-      if (!musicShouldPlayRef.current && audio.menu.paused) void audio.menu.play().catch(() => {});
+      if (screenRef.current === "playing" && audio.music.paused) void audio.music.play().catch(() => {});
+      if ((screenRef.current === "start" || screenRef.current === "selection") && audio.menu.paused) void audio.menu.play().catch(() => {});
     };
     const resumeTimer = window.setInterval(resumeActiveMusic, 900);
     document.addEventListener("visibilitychange", resumeActiveMusic);
@@ -311,18 +314,18 @@ export default function BarGame() {
 
   useEffect(() => {
     if (USE_NATIVE_MUSIC) {
-      switchNativeMusic(screen === "playing" ? "game" : "menu");
+      switchNativeMusic(screen === "playing" ? "game" : screen === "roulette" ? "stopped" : "menu");
       return;
     }
     const menu = audioRefs.current.menu;
     if (!menu) return;
-    if (screen === "playing") {
+    if (screen === "playing" || screen === "roulette") {
       menu.pause();
       menu.currentTime = 0;
       return;
     }
     const startMenuMusic = () => {
-      if (screen !== "playing" && menu.paused) void menu.play().catch(() => {});
+      if ((screen === "start" || screen === "selection") && menu.paused) void menu.play().catch(() => {});
     };
     startMenuMusic();
     window.addEventListener("pointerdown", startMenuMusic, { once: true });
@@ -796,7 +799,7 @@ export default function BarGame() {
       if (secondsLeft <= 0 || (fellAt >= 0 && elapsed - fellAt >= 1.35)) {
         stopped = true;
         musicShouldPlayRef.current = false;
-        if (USE_NATIVE_MUSIC) switchNativeMusic("menu");
+        if (USE_NATIVE_MUSIC) switchNativeMusic("stopped");
         ["cheer", "music", "burp", "drink"].forEach((key) => {
           const audio = audioRefs.current[key];
           if (!audio) return;

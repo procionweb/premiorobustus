@@ -1,5 +1,5 @@
 import { RotateCcw, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { getBarPrizes, type BarPrize } from "@/lib/barGameDb";
 
 interface Props { score: number; onPrize: (prize: BarPrize) => void; onFinish: () => void; }
@@ -10,9 +10,54 @@ function pickPrize(prizes: BarPrize[]) {
   return prizes.find((prize) => (value -= Math.max(0, prize.weight)) <= 0) ?? prizes[prizes.length - 1];
 }
 
+function PrizeFace({ prize }: { prize: BarPrize | undefined }) {
+  if (!prize) return <span className="text-lg font-black text-[#174b42]">...</span>;
+  const percentage = prize.name.match(/\d+%/)?.[0];
+  const hasBottle = ["dupla", "leve-4", "off-275", "super-275"].includes(prize.id) || /garrafa|275 ml/i.test(prize.name);
+  if (hasBottle) {
+    return <div className="flex h-full w-full flex-col items-center justify-center gap-0.5"><img src="/bar-game/bottles/manga-maracuja.png" alt="" className="h-[62%] max-w-[45%] object-contain drop-shadow-[0_3px_3px_rgba(0,0,0,.42)]" /><span className="line-clamp-2 px-1 text-[clamp(7px,2vw,10px)] font-black uppercase leading-none text-[#173f37]">{prize.name}</span></div>;
+  }
+  if (percentage) {
+    return <div className="flex flex-col items-center justify-center"><strong className="text-[clamp(22px,7vw,34px)] font-black leading-none text-[#174c42] [text-shadow:0_2px_0_#fff]">{percentage}</strong><span className="mt-1 text-[8px] font-black uppercase tracking-wide text-[#8b3d21]">desconto</span></div>;
+  }
+  return <span className="line-clamp-3 px-1 text-[clamp(8px,2.2vw,11px)] font-black uppercase leading-tight text-[#174b42]">{prize.name}</span>;
+}
+
+function playWheelSound(timers: MutableRefObject<number[]>) {
+  const AudioCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioCtor) return;
+  const context = new AudioCtor();
+  const master = context.createGain();
+  master.gain.setValueAtTime(0.055, context.currentTime);
+  master.gain.exponentialRampToValueAtTime(0.006, context.currentTime + 4.2);
+  master.connect(context.destination);
+  const motor = context.createOscillator();
+  motor.type = "sawtooth";
+  motor.frequency.setValueAtTime(72, context.currentTime);
+  motor.frequency.exponentialRampToValueAtTime(34, context.currentTime + 4.2);
+  motor.connect(master);
+  motor.start();
+  motor.stop(context.currentTime + 4.25);
+  const click = (elapsed = 0) => {
+    if (elapsed > 4200) { void context.close(); return; }
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    oscillator.type = "square";
+    oscillator.frequency.value = 520 - elapsed * 0.055;
+    gain.gain.setValueAtTime(0.08, context.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.035);
+    oscillator.connect(gain).connect(context.destination);
+    oscillator.start();
+    oscillator.stop(context.currentTime + 0.04);
+    const delay = 58 + Math.pow(elapsed / 4200, 2.8) * 260;
+    timers.current.push(window.setTimeout(() => click(elapsed + delay), delay));
+  };
+  click();
+}
+
 export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props) {
   const [prizes, setPrizes] = useState<BarPrize[]>([]);
-  const [reels, setReels] = useState([0, 1, 2]);
+  const [reels, setReels] = useState([1, 2, 3]);
   const [reelDurations, setReelDurations] = useState([0, 0, 0]);
   const [spinning, setSpinning] = useState(false);
   const [chosen, setChosen] = useState<BarPrize | null>(null);
@@ -28,6 +73,7 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
   const spin = () => {
     if (spinning || chosen || !prizes.length) return;
     setSpinning(true);
+    playWheelSound(timers);
     const winner = pickPrize(prizes);
     const winnerIndex = prizes.findIndex((prize) => prize.id === winner.id);
     const stopTimes = [3200, 3700, 4200];
@@ -42,20 +88,19 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
   };
 
   return (
-    <section className="absolute inset-0 z-50 min-h-[100dvh] overflow-hidden bg-[#05080c] text-center text-amber-100">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,8,16,.18),rgba(0,5,12,.32)),url('/bar-game/roulette-scene-v3.png')] bg-cover bg-center" />
-      <div className="relative z-10 mx-auto flex h-full min-h-[100dvh] w-full max-w-[430px] flex-col items-center overflow-hidden px-[clamp(16px,4.5vw,22px)] py-[clamp(12px,2dvh,18px)]">
-        <header className="relative flex w-[90%] shrink-0 flex-col items-center justify-center rounded-md border-2 border-[#c58a2d] bg-[linear-gradient(180deg,rgba(8,28,48,.97),rgba(2,12,23,.99))] px-4 py-[clamp(8px,1.4dvh,13px)] shadow-[0_0_0_3px_#3e2309,0_0_0_5px_#8f571b,0_8px_24px_#000] before:absolute before:inset-[5px] before:rounded-sm before:border before:border-[#e0b352]/40">
-          <span className="absolute -top-3 h-6 w-6 rotate-45 border-2 border-[#e1b552] bg-[#126fa5] shadow-[0_0_10px_#38bdf8]" />
-          <h1 className="font-serif text-[clamp(27px,7.5vw,38px)] font-black uppercase tracking-[0.09em] text-[#efc76d] [text-shadow:0_2px_2px_#000,0_0_12px_rgba(217,154,50,.38)]">Prêmios</h1>
-          <span className="mt-1 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.16em] text-[#e9c36d] [text-shadow:0_1px_3px_#000]">Fim de jogo · {score} pontos</span>
+    <section className="absolute inset-0 z-50 min-h-[100dvh] overflow-hidden bg-[#f9b719] text-center text-[#153f38]">
+      <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#269d88_0_14%,transparent_14%_87%,#197c79_87%_100%),repeating-conic-gradient(from_245deg_at_50%_48%,rgba(255,255,255,.14)_0deg_8deg,transparent_8deg_18deg),linear-gradient(155deg,#ffd83d,#ff9d13)]" />
+      <div className="relative z-10 mx-auto flex h-full min-h-[100dvh] w-full max-w-[430px] flex-col items-center overflow-hidden px-[clamp(14px,4vw,20px)] py-[clamp(12px,2dvh,18px)]">
+        <header className="relative flex w-[92%] shrink-0 flex-col items-center justify-center rounded-md border-[3px] border-white bg-[linear-gradient(180deg,#42c1a5,#188a80)] px-4 py-[clamp(8px,1.4dvh,13px)] shadow-[0_0_0_3px_#174b4d,0_6px_0_#0d6662,0_9px_18px_rgba(0,0,0,.25)]">
+          <h1 className="font-sans text-[clamp(26px,7.5vw,38px)] font-black uppercase tracking-[0.04em] text-white [text-shadow:0_3px_0_#154d4c]">Super Prêmio</h1>
+          <span className="mt-1 whitespace-nowrap rounded-full bg-[#155d59] px-4 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#fff2a4]">Fim de jogo · {score} pontos</span>
         </header>
 
-        <button type="button" onClick={spin} disabled={spinning || !!chosen || !prizes.length} className="relative mt-[clamp(46px,7dvh,68px)] w-full select-none rounded-md border-[3px] border-[#d29a3b] bg-[linear-gradient(180deg,#0b2438,#061522)] p-2 shadow-[0_0_0_3px_#3b2109,0_0_0_6px_#8d5518,0_12px_30px_#000,inset_0_0_24px_rgba(30,144,190,.18)] disabled:cursor-default">
-          <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-[31%] w-[calc(100%+18px)] -translate-x-1/2 -translate-y-1/2 border-y-2 border-[#f1c65e] bg-[#c9a13b]/10 shadow-[0_0_12px_rgba(246,199,91,.55),inset_0_0_12px_rgba(255,212,94,.2)]" />
-          <div className="grid h-[min(63vw,278px)] grid-cols-3 gap-2 overflow-hidden rounded-sm bg-[#02080d] p-2 shadow-[inset_0_0_20px_#000]">
+        <button type="button" onClick={spin} disabled={spinning || !!chosen || !prizes.length} className="relative mt-[clamp(108px,15dvh,142px)] w-full select-none rounded-md border-[4px] border-white bg-[linear-gradient(180deg,#42b99d,#16847c)] p-2.5 shadow-[0_0_0_4px_#19615e,0_9px_0_#0d615d,0_14px_26px_rgba(74,47,0,.35)] disabled:cursor-default">
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-[32%] w-[calc(100%+14px)] -translate-x-1/2 -translate-y-1/2 border-y-[3px] border-white bg-[#ffe86b]/12 shadow-[0_0_0_2px_#f49422,0_0_16px_rgba(255,245,142,.85)]" />
+          <div className="grid h-[min(61vw,264px)] grid-cols-3 gap-2 overflow-hidden rounded-sm bg-[#135e5b] p-2 shadow-[inset_0_0_15px_rgba(0,0,0,.38)]">
             {reels.map((centerIndex, reelIndex) => (
-              <div key={reelIndex} className="relative overflow-hidden rounded-sm border-2 border-[#a86d1d] bg-[#071623] shadow-[inset_0_0_14px_#000]">
+              <div key={reelIndex} className="relative overflow-hidden rounded-sm border-[3px] border-white bg-[#dff4d3] shadow-[0_0_0_2px_#f39a21,inset_0_0_10px_rgba(0,0,0,.2)]">
                 <div
                   className="absolute left-0 top-1/3 w-full will-change-transform"
                   style={{
@@ -65,23 +110,23 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
                   }}
                 >
                   {strip.map((prize, itemIndex) => (
-                    <div key={`${prize?.id ?? "loading"}-${itemIndex}`} className={`flex items-center justify-center border-y border-[#d4a443]/35 px-1.5 ${itemIndex % 2 ? "bg-[linear-gradient(180deg,#123044,#091c2c)]" : "bg-[linear-gradient(180deg,#194b41,#0d302d)]"}`} style={{ height: `${100 / strip.length}%` }}>
-                      <span className="line-clamp-3 font-sans text-[clamp(8px,2.35vw,11px)] font-black uppercase leading-[1.08] text-[#ffe49a] [text-shadow:0_1px_3px_#000]">{prize?.name ?? "..."}</span>
+                    <div key={`${prize?.id ?? "loading"}-${itemIndex}`} className={`flex items-center justify-center border-y-2 border-[#74b756] px-1 ${itemIndex % 2 ? "bg-[linear-gradient(180deg,#f8fff1,#bfe98d)]" : "bg-[linear-gradient(180deg,#fff9d1,#f4c95b)]"}`} style={{ height: `${100 / strip.length}%` }}>
+                      <PrizeFace prize={prize} />
                     </div>
                   ))}
                 </div>
               </div>
             ))}
           </div>
-          {!chosen && <div className="mt-3 flex items-center justify-center gap-2 py-1 font-sans text-[11px] font-black uppercase tracking-[0.12em] text-[#efd17d] [text-shadow:0_1px_3px_#000]"><Sparkles size={15} />{spinning ? "Sorteando..." : prizes.length ? "Toque para sortear" : "Carregando prêmios..."}</div>}
+          {!chosen && <div className="mt-3 flex items-center justify-center gap-2 rounded-sm bg-[#155f5b] py-2 font-sans text-[11px] font-black uppercase tracking-[0.12em] text-white [text-shadow:0_1px_2px_#174f4c]"><Sparkles size={15} />{spinning ? "Sorteando..." : prizes.length ? "Toque para sortear" : "Carregando prêmios..."}</div>}
         </button>
 
         <div className="mt-auto flex w-full flex-col items-center justify-end pt-3">
-          {chosen && <div className="mb-[clamp(8px,1.4dvh,14px)] w-[calc(100%-14px)] max-w-[365px] rounded-md border-2 border-[#c68a2e] bg-[linear-gradient(180deg,rgba(5,26,45,.98),rgba(2,12,23,.99))] px-4 py-3 shadow-[0_0_0_3px_#3b2108,0_0_0_5px_#8e561a,0_8px_24px_#000]">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#dcae52]">Seu prêmio</p>
-            <strong className="mt-1 block font-serif text-xl font-black uppercase tracking-wide text-[#f7d77c] drop-shadow-[0_2px_2px_#000]">{chosen.name}</strong>
-            <p className="mx-auto mt-1.5 max-w-[310px] text-xs font-semibold leading-snug text-[#f7e7bd]">{chosen.description}</p>
-            <button onClick={(event) => { event.stopPropagation(); onFinish(); }} className="mt-3 inline-flex min-h-10 w-[68%] max-w-[230px] items-center justify-center gap-2 rounded-full border border-[#e2b65b] bg-[#8b4d12] px-3 font-serif text-[13px] font-black uppercase text-[#fff0bd] shadow-[0_3px_0_#3b2109] [text-shadow:0_1px_3px_#000] active:translate-y-0.5 active:shadow-none"><RotateCcw size={16} /> Voltar ao início</button>
+          {chosen && <div className="mb-[clamp(8px,1.4dvh,14px)] w-[calc(100%-14px)] max-w-[365px] rounded-md border-[3px] border-white bg-[linear-gradient(180deg,#fff7b8,#ffd34d)] px-4 py-3 text-[#174b42] shadow-[0_0_0_3px_#1b6762,0_7px_0_#0d5b58,0_11px_22px_rgba(0,0,0,.28)]">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#a34821]">Você ganhou</p>
+            <strong className="mt-1 block font-sans text-xl font-black uppercase tracking-wide text-[#174b42] drop-shadow-[0_2px_0_#fff]">{chosen.name}</strong>
+            <p className="mx-auto mt-1.5 max-w-[310px] text-xs font-bold leading-snug text-[#653817]">{chosen.description}</p>
+            <button onClick={(event) => { event.stopPropagation(); onFinish(); }} className="mt-3 inline-flex min-h-10 w-[68%] max-w-[230px] items-center justify-center gap-2 rounded-md border-2 border-white bg-[#218f83] px-3 font-sans text-[13px] font-black uppercase text-white shadow-[0_4px_0_#0d5d59] active:translate-y-0.5 active:shadow-none"><RotateCcw size={16} /> Voltar ao início</button>
           </div>}
         </div>
       </div>
