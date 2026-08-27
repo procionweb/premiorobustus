@@ -97,7 +97,11 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
         >
           {prizes.map((prize, index) => {
             const angle = (index + 0.5) * (360 / prizes.length);
-            return <span key={prize.id} className="absolute left-1/2 top-1/2 w-[39%] origin-left text-left text-[8px] font-black uppercase leading-tight text-[#ffe6a3] drop-shadow-[0_1px_2px_#000]" style={{ transform: `rotate(${angle - 90}deg) translateX(31%)` }}>{prize.name}</span>;
+            return (
+              <span key={prize.id} className="absolute left-1/2 top-1/2 w-[36%] origin-left text-center text-[9px] font-black uppercase leading-[1.05] tracking-wide text-[#fff0b5]" style={{ transform: `rotate(${angle - 90}deg) translateX(68%)` }}>
+                <span className="inline-block max-w-full rounded border border-[#d9a642]/45 bg-[#05080c]/75 px-1.5 py-1 shadow-[0_1px_4px_#000] [text-shadow:0_1px_2px_#000,0_0_3px_#000]">{prize.name}</span>
+              </span>
+            );
           })}
         </div>
       </div>
