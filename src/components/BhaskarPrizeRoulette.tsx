@@ -101,7 +101,7 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
           <span className="mt-1 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.16em] text-[#e9c36d] [text-shadow:0_1px_3px_#000]">Fim de jogo · {score} pontos</span>
         </header>
 
-        <div className="relative mt-[clamp(34px,5dvh,46px)] h-[min(82vw,42dvh,350px)] w-[min(82vw,42dvh,350px)] shrink-0">
+        <div className="relative mt-[clamp(54px,7dvh,68px)] h-[min(82vw,42dvh,350px)] w-[min(82vw,42dvh,350px)] shrink-0">
           <div className="absolute left-1/2 top-[-7px] z-30 h-0 w-0 -translate-x-1/2 border-x-[14px] border-t-[26px] border-x-transparent border-t-[#f7df99] drop-shadow-[0_2px_3px_#000]" />
           <div
             role="slider" aria-label="Gire a roleta arrastando" aria-valuetext={spinning ? "Girando" : chosen ? chosen.name : "Pronta para girar"} tabIndex={0}
@@ -109,7 +109,6 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
             className={`relative h-full w-full select-none overflow-hidden rounded-full border-[7px] border-[#d7a33d] shadow-[0_0_0_3px_#4a2707,0_0_0_7px_#b66e14,0_0_0_10px_#241205,0_10px_28px_rgba(0,0,0,.72),inset_0_0_22px_#000] ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
             style={{ background: wheelArt, touchAction: "none", transform: `rotate(${rotation}deg)`, transition: duration ? `transform ${duration}ms cubic-bezier(.08,.66,.12,1)` : "none" }}
           >
-            <div className="pointer-events-none absolute inset-[5%] rounded-full border-2 border-[#e4b952]/70 shadow-[inset_0_0_0_3px_#4a2707,inset_0_0_18px_#000]" />
             {prizes.map((prize, index) => {
               const angle = (index + 0.5) * (360 / prizes.length);
               return <span key={prize.id} className="absolute left-1/2 top-1/2 z-10 w-[35%] origin-left text-center font-sans text-[9px] font-extrabold uppercase leading-[1.08] text-[#f7dc92]" style={{ transform: `rotate(${angle - 90}deg) translateX(43%)` }}><span className="inline-block max-w-full break-words [text-shadow:0_1px_1px_#000,0_0_3px_#000,0_0_5px_#000]">{prize.name}</span></span>;
