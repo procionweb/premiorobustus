@@ -1,5 +1,5 @@
 import { RotateCcw } from "lucide-react";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { getBarPrizes, type BarPrize } from "@/lib/barGameDb";
 
 interface Props { score: number; onPrize: (prize: BarPrize) => void; onFinish: () => void; }
@@ -31,6 +31,17 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
   const decided = useRef(false);
 
   useEffect(() => { void getBarPrizes().then((items) => setPrizes(items.filter((item) => item.enabled && item.weight > 0))); }, []);
+
+  const wheelArt = useMemo(() => {
+    const count = Math.max(1, prizes.length);
+    const colors = ["#102f48", "#4b1721", "#16402e", "#321a3c", "#51300d", "#123b38", "#4c1828", "#17334d"];
+    const sectors = Array.from({ length: count }, (_, index) => {
+      const start = index * 360 / count;
+      const end = (index + 1) * 360 / count;
+      return `${colors[index % colors.length]} ${start}deg ${end}deg`;
+    }).join(",");
+    return `radial-gradient(circle,transparent 0 20%,rgba(232,174,67,.9) 20.5% 21.5%,#160d05 22% 24%,transparent 24.5%),repeating-conic-gradient(from -1deg,rgba(247,205,109,.9) 0deg 1.2deg,transparent 1.2deg ${360 / count}deg),conic-gradient(${sectors})`;
+  }, [prizes]);
 
   const beginDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (spinning || decided.current || !prizes.length) return;
@@ -92,17 +103,25 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
         <div
           role="slider" aria-label="Gire a roleta arrastando" aria-valuetext={spinning ? "Girando" : chosen ? chosen.name : "Pronta para girar"} tabIndex={0}
           onPointerDown={beginDrag} onPointerMove={moveDrag} onPointerUp={finishDrag} onPointerCancel={finishDrag}
-          className={`relative h-full w-full select-none overflow-hidden rounded-full border-[3px] border-[#c88927] shadow-[0_0_0_3px_#3b2109,0_8px_24px_rgba(0,0,0,.65)] ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
-          style={{ backgroundImage: "url('/bar-game/roulette-background.png')", backgroundPosition: "50% 38%", backgroundSize: "145% 257%", touchAction: "none", transform: `rotate(${rotation}deg)`, transition: duration ? `transform ${duration}ms cubic-bezier(.08,.66,.12,1)` : "none" }}
+          className={`relative h-full w-full select-none overflow-hidden rounded-full border-[7px] border-[#d7a33d] shadow-[0_0_0_3px_#4a2707,0_0_0_7px_#b66e14,0_0_0_10px_#241205,0_10px_28px_rgba(0,0,0,.72),inset_0_0_22px_#000] ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+          style={{ background: wheelArt, touchAction: "none", transform: `rotate(${rotation}deg)`, transition: duration ? `transform ${duration}ms cubic-bezier(.08,.66,.12,1)` : "none" }}
         >
+          <div className="pointer-events-none absolute inset-[5%] rounded-full border-2 border-[#e4b952]/70 shadow-[inset_0_0_0_3px_#4a2707,inset_0_0_18px_#000]" />
+          <div className="pointer-events-none absolute inset-[12%] rounded-full border border-[#e2b14d]/45" />
+          {Array.from({ length: 24 }, (_, index) => (
+            <i key={index} className="pointer-events-none absolute left-1/2 top-1/2 h-2 w-2 rounded-[2px] bg-[#efc463] shadow-[0_0_5px_#f59e0b]" style={{ transform: `translate(-50%,-50%) rotate(${index * 15}deg) translateY(-142px) rotate(45deg)` }} />
+          ))}
           {prizes.map((prize, index) => {
             const angle = (index + 0.5) * (360 / prizes.length);
             return (
-              <span key={prize.id} className="absolute left-1/2 top-1/2 w-[36%] origin-left text-center text-[9px] font-black uppercase leading-[1.05] tracking-wide text-[#fff0b5]" style={{ transform: `rotate(${angle - 90}deg) translateX(68%)` }}>
-                <span className="inline-block max-w-full rounded border border-[#d9a642]/45 bg-[#05080c]/75 px-1.5 py-1 shadow-[0_1px_4px_#000] [text-shadow:0_1px_2px_#000,0_0_3px_#000]">{prize.name}</span>
+              <span key={prize.id} className="absolute left-1/2 top-1/2 z-10 w-[28%] origin-left text-center text-[8px] font-black uppercase leading-[1.08] text-[#fff0b5]" style={{ transform: `rotate(${angle - 90}deg) translateX(78%)` }}>
+                <span className="inline-block max-w-full break-words rounded border border-[#e6b850]/55 bg-[#03070b]/80 px-1 py-1 shadow-[0_1px_5px_#000] [text-shadow:0_1px_2px_#000]">{prize.name}</span>
               </span>
             );
           })}
+          <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 flex h-[25%] w-[25%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] border-[#efc35c] bg-[radial-gradient(circle_at_38%_32%,#8ee8ff_0_5%,#1678bd_18%,#06395f_44%,#031321_70%)] shadow-[0_0_0_5px_#512b08,0_0_0_8px_#d99a32,0_0_22px_#139fe8,inset_0_0_12px_#000]">
+            <span className="h-[42%] w-[42%] rotate-45 border-2 border-[#b6efff] bg-[#168dd1] shadow-[0_0_12px_#6ee7ff,inset_0_0_8px_#fff]" />
+          </div>
         </div>
       </div>
 
