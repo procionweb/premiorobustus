@@ -881,12 +881,20 @@ export default function BarGame() {
       )}
 
       {screen === "selection" && (
-        <section className="absolute inset-0 z-30 overflow-hidden bg-[#f4e3b3]">
-          <img src={`/bar-game/selecao-${selectedCharacter}.png`} alt="Seleção de personagem" className="absolute inset-0 h-full w-full object-cover object-center" />
-          <button aria-label="Selecionar Ginaldo" onClick={() => { playUiSound("select"); setSelectedCharacter("ginaldo"); }} className="absolute bottom-[6%] left-[8%] h-[25%] w-[41%]" />
-          <button aria-label="Selecionar Jackson" onClick={() => { playUiSound("select"); setSelectedCharacter("jackson"); }} className="absolute bottom-[6%] right-[8%] h-[25%] w-[41%]" />
-          <button aria-label="Confirmar personagem" onClick={() => { playUiSound("button"); window.setTimeout(startGame, 140); }} className="absolute bottom-0 left-[11%] h-[7%] w-[34%]" />
-          <button aria-label="Voltar" onClick={() => { playUiSound("button"); setScreen("start"); }} className="absolute bottom-0 right-[11%] h-[7%] w-[34%]" />
+        <section className="absolute inset-0 z-30 overflow-hidden bg-[#17130e]">
+          <div
+            className="absolute left-1/2 top-1/2 overflow-hidden -translate-x-1/2 -translate-y-1/2"
+            style={{
+              width: "min(100vw, calc(100vh * 941 / 1672))",
+              height: "min(100vh, calc(100vw * 1672 / 941))",
+            }}
+          >
+            <img src={`/bar-game/selecao-${selectedCharacter}.png`} alt="Seleção de personagem" className="absolute inset-0 h-full w-full" />
+            <button aria-label="Selecionar Ginaldo" onClick={() => { playUiSound("select"); setSelectedCharacter("ginaldo"); }} className="absolute bottom-[6%] left-[8%] h-[25%] w-[41%]" />
+            <button aria-label="Selecionar Jackson" onClick={() => { playUiSound("select"); setSelectedCharacter("jackson"); }} className="absolute bottom-[6%] right-[8%] h-[25%] w-[41%]" />
+            <button aria-label="Confirmar personagem" onClick={() => { playUiSound("button"); window.setTimeout(startGame, 140); }} className="absolute bottom-0 left-[11%] h-[7%] w-[34%]" />
+            <button aria-label="Voltar" onClick={() => { playUiSound("button"); setScreen("start"); }} className="absolute bottom-0 right-[11%] h-[7%] w-[34%]" />
+          </div>
         </section>
       )}
 
