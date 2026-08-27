@@ -242,7 +242,9 @@ export default function BarGame() {
     walkerSpriteRefs.current.ginaldo = ginaldoWalker;
     ginaldoWalker.onload = () => {
       walkerFramesRef.current.ginaldo = [0, 1].flatMap((row) =>
-        Array.from({ length: 15 }, (_, column) => isolatePerson(ginaldoWalker, column, 15, row, 1, 2, 1)),
+        Array.from({ length: 15 }, (_, column) =>
+          isolatePerson(ginaldoWalker, column, 15, row, row === 1 ? 1.1 : 1.04, 2, 1),
+        ),
       );
     };
     const bottleSources = [
