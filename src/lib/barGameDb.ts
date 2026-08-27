@@ -3,6 +3,7 @@ export type BarCharacter = "jackson" | "ginaldo";
 export interface BarPrize {
   id: string;
   name: string;
+  description: string;
   weight: number;
   enabled: boolean;
 }
@@ -19,10 +20,14 @@ export interface BarGameResult {
 }
 
 export const DEFAULT_BAR_PRIZES: BarPrize[] = [
-  { id: "dose", name: "Dose Bhaskar", weight: 30, enabled: true },
-  { id: "desconto", name: "Desconto especial", weight: 25, enabled: true },
-  { id: "brinde", name: "Brinde surpresa", weight: 20, enabled: true },
-  { id: "again", name: "Jogue novamente", weight: 25, enabled: true },
+  { id: "off-5", name: "5% OFF", description: "Você ganhou 5% OFF em qualquer compra Bhaskar.", weight: 12.5, enabled: true },
+  { id: "dupla", name: "Dupla Bhaskar", description: "Compre uma Bhaskar 275 ml e ganhe 10% OFF em uma garrafa de 750 ml.", weight: 12.5, enabled: true },
+  { id: "leve-4", name: "Compre 3 e leve 4", description: "Compre 3 e leve 4. Leve a de menor valor escolhido como brinde.", weight: 12.5, enabled: true },
+  { id: "off-10", name: "10% OFF", description: "Você ganhou 10% OFF em qualquer compra Bhaskar.", weight: 12.5, enabled: true },
+  { id: "segunda-20", name: "Segunda com 20% OFF", description: "Você ganhou 20% OFF na segunda garrafa Bhaskar que comprar.", weight: 12.5, enabled: true },
+  { id: "off-15", name: "15% OFF", description: "Você ganhou 15% OFF em compras acima de R$ 89,90.", weight: 12.5, enabled: true },
+  { id: "off-275", name: "30% OFF na 275 ml", description: "Comprando uma Bhaskar 750 ml, ganhe 30% OFF em uma garrafa de 275 ml.", weight: 12.5, enabled: true },
+  { id: "super-275", name: "Bhaskar 275 ml", description: "SUPER PRÊMIO! Você ganhou uma garrafa Bhaskar 275 ml.", weight: 12.5, enabled: true },
 ];
 
 const DB_NAME = "bhaskar.bar.offline.v1";
@@ -50,7 +55,15 @@ export async function getBarPrizes(): Promise<BarPrize[]> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const request = db.transaction(SETTINGS, "readonly").objectStore(SETTINGS).get("prizes");
-    request.onsuccess = () => resolve(request.result?.value ?? DEFAULT_BAR_PRIZES.map((prize) => ({ ...prize })));
+    request.onsuccess = () => {
+      const saved = request.result?.value as BarPrize[] | undefined;
+      const legacyIds = new Set(["dose", "desconto", "brinde", "again"]);
+      if (!saved?.length || saved.every((prize) => legacyIds.has(prize.id))) {
+        resolve(DEFAULT_BAR_PRIZES.map((prize) => ({ ...prize })));
+        return;
+      }
+      resolve(saved.map((prize) => ({ ...prize, description: prize.description ?? "" })));
+    };
     request.onerror = () => reject(request.error);
   });
 }

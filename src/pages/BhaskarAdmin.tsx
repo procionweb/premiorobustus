@@ -80,14 +80,17 @@ export default function BhaskarAdmin() {
 
       <div className="mx-auto mt-7 grid max-w-5xl gap-6 lg:grid-cols-[1fr_1.2fr]">
         <section className="rounded-md border border-amber-400/25 bg-black/35 p-5">
-          <div className="flex items-center justify-between"><h2 className="text-lg font-black uppercase">Prêmios da roleta</h2><button onClick={() => setPrizes((items) => [...items, { id: `${Date.now()}`, name: "Novo prêmio", weight: 10, enabled: true }])} title="Adicionar prêmio" className="p-2"><Plus /></button></div>
+          <div className="flex items-center justify-between"><h2 className="text-lg font-black uppercase">Prêmios da roleta</h2><button onClick={() => setPrizes((items) => [...items, { id: `${Date.now()}`, name: "Novo prêmio", description: "", weight: 10, enabled: true }])} title="Adicionar prêmio" className="p-2"><Plus /></button></div>
           <div className="mt-4 space-y-3">
             {prizes.map((prize, index) => (
-              <div key={prize.id} className="grid grid-cols-[auto_1fr_70px_auto] items-center gap-2 rounded-md bg-white/5 p-2">
-                <input type="checkbox" checked={prize.enabled} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item))} />
-                <input value={prize.name} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} className="min-w-0 rounded bg-white p-2 text-black" />
-                <input type="number" min="0" value={prize.weight} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, weight: Number(event.target.value) } : item))} className="rounded bg-white p-2 text-black" title="Peso" />
-                <button onClick={() => setPrizes((items) => items.filter((_, itemIndex) => itemIndex !== index))} title="Remover"><Trash2 size={18} /></button>
+              <div key={prize.id} className="rounded-md bg-white/5 p-2">
+                <div className="grid grid-cols-[auto_1fr_70px_auto] items-center gap-2">
+                  <input type="checkbox" checked={prize.enabled} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item))} />
+                  <input value={prize.name} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} className="min-w-0 rounded bg-white p-2 text-black" />
+                  <input type="number" min="0" value={prize.weight} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, weight: Number(event.target.value) } : item))} className="rounded bg-white p-2 text-black" title="Peso" />
+                  <button onClick={() => setPrizes((items) => items.filter((_, itemIndex) => itemIndex !== index))} title="Remover"><Trash2 size={18} /></button>
+                </div>
+                <textarea value={prize.description} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))} rows={2} placeholder="Descrição exibida ao ganhador" className="mt-2 w-full resize-y rounded bg-white p-2 text-sm text-black" />
               </div>
             ))}
           </div>
