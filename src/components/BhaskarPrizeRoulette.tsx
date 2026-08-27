@@ -1,5 +1,5 @@
 import { RotateCcw, Sparkles } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getBarPrizes, type BarPrize } from "@/lib/barGameDb";
 
 interface Props { score: number; onPrize: (prize: BarPrize) => void; onFinish: () => void; }
@@ -10,11 +10,10 @@ function pickPrize(prizes: BarPrize[]) {
   return prizes.find((prize) => (value -= Math.max(0, prize.weight)) <= 0) ?? prizes[prizes.length - 1];
 }
 
-const reelOffsets = [-1, 0, 1];
-
 export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props) {
   const [prizes, setPrizes] = useState<BarPrize[]>([]);
   const [reels, setReels] = useState([0, 1, 2]);
+  const [reelDurations, setReelDurations] = useState([0, 0, 0]);
   const [spinning, setSpinning] = useState(false);
   const [chosen, setChosen] = useState<BarPrize | null>(null);
   const timers = useRef<number[]>([]);
@@ -24,33 +23,22 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
     return () => timers.current.forEach(window.clearTimeout);
   }, []);
 
-  const prizeAt = (index: number) => prizes.length ? prizes[(index % prizes.length + prizes.length) % prizes.length] : null;
+  const strip = useMemo(() => Array.from({ length: prizes.length * 12 }, (_, index) => prizes[index % prizes.length]), [prizes]);
 
   const spin = () => {
     if (spinning || chosen || !prizes.length) return;
     setSpinning(true);
     const winner = pickPrize(prizes);
     const winnerIndex = prizes.findIndex((prize) => prize.id === winner.id);
-    const stopTimes = [2200, 2800, 3400];
-
-    reels.forEach((_, reelIndex) => {
-      const tick = (elapsed = 0) => {
-        if (elapsed >= stopTimes[reelIndex]) {
-          setReels((current) => current.map((value, index) => index === reelIndex ? winnerIndex : value));
-          if (reelIndex === 2) {
-            setChosen(winner);
-            setSpinning(false);
-            onPrize(winner);
-          }
-          return;
-        }
-        setReels((current) => current.map((value, index) => index === reelIndex ? value + 1 : value));
-        const progress = elapsed / stopTimes[reelIndex];
-        const delay = 72 + Math.pow(progress, 3) * 210;
-        timers.current.push(window.setTimeout(() => tick(elapsed + delay), delay));
-      };
-      tick(reelIndex * 35);
-    });
+    const stopTimes = [3200, 3700, 4200];
+    const targets = stopTimes.map((_, reelIndex) => (8 + reelIndex) * prizes.length + winnerIndex);
+    setReelDurations(stopTimes);
+    timers.current.push(window.setTimeout(() => setReels(targets), 30));
+    timers.current.push(window.setTimeout(() => {
+      setChosen(winner);
+      setSpinning(false);
+      onPrize(winner);
+    }, stopTimes[2] + 100));
   };
 
   return (
@@ -67,11 +55,21 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
           <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-[31%] w-[calc(100%+18px)] -translate-x-1/2 -translate-y-1/2 border-y-2 border-[#f1c65e] bg-[#c9a13b]/10 shadow-[0_0_12px_rgba(246,199,91,.55),inset_0_0_12px_rgba(255,212,94,.2)]" />
           <div className="grid h-[min(63vw,278px)] grid-cols-3 gap-2 overflow-hidden rounded-sm bg-[#02080d] p-2 shadow-[inset_0_0_20px_#000]">
             {reels.map((centerIndex, reelIndex) => (
-              <div key={reelIndex} className="relative grid grid-rows-3 overflow-hidden rounded-sm border-2 border-[#a86d1d] bg-[#071623] shadow-[inset_0_0_14px_#000]">
-                {reelOffsets.map((offset) => {
-                  const prize = prizeAt(centerIndex + offset);
-                  return <div key={offset} className={`flex min-h-0 items-center justify-center border-y border-[#d4a443]/35 px-1.5 transition-all duration-100 ${offset === 0 ? "bg-[linear-gradient(180deg,#194b41,#0d302d)] text-[#ffe49a]" : "bg-[linear-gradient(180deg,#123044,#091c2c)] text-[#b9c9c7] opacity-65"}`}><span className="line-clamp-3 font-sans text-[clamp(8px,2.35vw,11px)] font-black uppercase leading-[1.08] [text-shadow:0_1px_3px_#000]">{prize?.name ?? "..."}</span></div>;
-                })}
+              <div key={reelIndex} className="relative overflow-hidden rounded-sm border-2 border-[#a86d1d] bg-[#071623] shadow-[inset_0_0_14px_#000]">
+                <div
+                  className="absolute left-0 top-1/3 w-full will-change-transform"
+                  style={{
+                    height: `${strip.length * 100 / 3}%`,
+                    transform: `translateY(-${strip.length ? centerIndex * 100 / strip.length : 0}%)`,
+                    transition: reelDurations[reelIndex] ? `transform ${reelDurations[reelIndex]}ms cubic-bezier(.12,.58,.1,1)` : "none",
+                  }}
+                >
+                  {strip.map((prize, itemIndex) => (
+                    <div key={`${prize?.id ?? "loading"}-${itemIndex}`} className={`flex items-center justify-center border-y border-[#d4a443]/35 px-1.5 ${itemIndex % 2 ? "bg-[linear-gradient(180deg,#123044,#091c2c)]" : "bg-[linear-gradient(180deg,#194b41,#0d302d)]"}`} style={{ height: `${100 / strip.length}%` }}>
+                      <span className="line-clamp-3 font-sans text-[clamp(8px,2.35vw,11px)] font-black uppercase leading-[1.08] text-[#ffe49a] [text-shadow:0_1px_3px_#000]">{prize?.name ?? "..."}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
