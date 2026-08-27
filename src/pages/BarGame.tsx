@@ -238,11 +238,11 @@ export default function BarGame() {
       walkerFramesRef.current.jackson = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0, 1.42));
     };
     const ginaldoWalker = new Image();
-    ginaldoWalker.src = "/bar-game/eduardo-walker-sprites-v3.png";
+    ginaldoWalker.src = "/bar-game/eduardo-walker-sprites-v4.png";
     walkerSpriteRefs.current.ginaldo = ginaldoWalker;
     ginaldoWalker.onload = () => {
       walkerFramesRef.current.ginaldo = [0, 1].flatMap((row) =>
-        Array.from({ length: 16 }, (_, column) => isolatePerson(ginaldoWalker, column, 16, row, 1.22, 2, 1)),
+        Array.from({ length: 15 }, (_, column) => isolatePerson(ginaldoWalker, column, 15, row, 1, 2, 1)),
       );
     };
     const bottleSources = [
@@ -525,8 +525,8 @@ export default function BarGame() {
       const drawW = drawH * (frames[0].width / frames[0].height);
       const startX = -drawW * 0.7;
       const endX = width + drawW * 0.7;
-      const interactionStart = 5 / 16;
-      const interactionEnd = 12 / 16;
+      const interactionStart = 5 / 15;
+      const interactionEnd = 11 / 15;
       const travelProgress = progress < interactionStart
         ? (progress / interactionStart) * 0.5
         : progress < interactionEnd
@@ -540,9 +540,9 @@ export default function BarGame() {
           ? startX + (endX - startX) * progress
           : endX - (endX - startX) * progress;
       const floorY = height * 0.67;
-      const framePosition = selectedCharacter === "ginaldo" ? progress * 16 : frameClock / 0.14;
-      const frameOffset = selectedCharacter === "ginaldo" && !goingRight ? 16 : 0;
-      const directionFrameCount = selectedCharacter === "ginaldo" ? 16 : frames.length;
+      const framePosition = selectedCharacter === "ginaldo" ? progress * 15 : frameClock / 0.14;
+      const frameOffset = selectedCharacter === "ginaldo" && !goingRight ? 15 : 0;
+      const directionFrameCount = selectedCharacter === "ginaldo" ? 15 : frames.length;
       const frameIndex = frameOffset + Math.min(directionFrameCount - 1, Math.floor(framePosition) % directionFrameCount);
       const walkWave = Math.sin(framePosition * Math.PI);
       const bob = Math.abs(walkWave) * (selectedCharacter === "ginaldo" ? 2.5 : 3);
