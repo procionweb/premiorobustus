@@ -93,14 +93,15 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
 
   return (
     <section className="absolute inset-0 z-50 min-h-[100dvh] overflow-x-hidden overflow-y-hidden bg-[#080808] text-center text-amber-100">
-      <div className="absolute inset-0 bg-[url('/bar-game/roulette-background-v2.png')] bg-cover bg-center" />
-      <div className="relative z-10 mx-auto flex h-full min-h-[100dvh] w-full max-w-[430px] flex-col items-center overflow-hidden px-[clamp(16px,4vw,22px)]">
-        <header className="flex h-[18%] w-full shrink-0 flex-col items-center justify-center pt-[1.5%]">
-          <h1 className="font-serif text-[clamp(30px,9vw,42px)] font-black uppercase tracking-[0.13em] text-[#efc76d] [text-shadow:0_2px_2px_#000,0_0_12px_rgba(217,154,50,.38)]">Roleta</h1>
-          <span className="mt-[clamp(10px,1.8dvh,16px)] whitespace-nowrap text-[10px] font-black uppercase tracking-[0.16em] text-[#e9c36d] [text-shadow:0_1px_3px_#000]">Fim de jogo · {score} pontos</span>
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,7,15,.12),rgba(0,4,10,.2)),url('/bar-game/roulette-scene-v3.png')] bg-cover bg-center" />
+      <div className="relative z-10 mx-auto flex h-full min-h-[100dvh] w-full max-w-[430px] flex-col items-center overflow-hidden px-[clamp(18px,5vw,24px)] py-[clamp(12px,2dvh,18px)]">
+        <header className="relative flex w-[88%] shrink-0 flex-col items-center justify-center rounded-md border-2 border-[#c58a2d] bg-[linear-gradient(180deg,rgba(8,28,48,.96),rgba(2,12,23,.98))] px-4 py-[clamp(8px,1.4dvh,13px)] shadow-[0_0_0_3px_#3e2309,0_0_0_5px_#8f571b,0_8px_24px_#000] before:absolute before:inset-[5px] before:rounded-sm before:border before:border-[#e0b352]/40">
+          <span className="absolute -top-3 h-6 w-6 rotate-45 border-2 border-[#e1b552] bg-[#126fa5] shadow-[0_0_10px_#38bdf8]" />
+          <h1 className="font-serif text-[clamp(28px,8vw,40px)] font-black uppercase tracking-[0.13em] text-[#efc76d] [text-shadow:0_2px_2px_#000,0_0_12px_rgba(217,154,50,.38)]">Roleta</h1>
+          <span className="mt-1 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.16em] text-[#e9c36d] [text-shadow:0_1px_3px_#000]">Fim de jogo · {score} pontos</span>
         </header>
 
-        <div className="relative h-[min(81vw,40dvh,345px)] w-[min(81vw,40dvh,345px)] shrink-0">
+        <div className="relative mt-[clamp(16px,2.4dvh,22px)] h-[min(82vw,42dvh,350px)] w-[min(82vw,42dvh,350px)] shrink-0">
           <div className="absolute left-1/2 top-[-7px] z-30 h-0 w-0 -translate-x-1/2 border-x-[14px] border-t-[26px] border-x-transparent border-t-[#f7df99] drop-shadow-[0_2px_3px_#000]" />
           <div
             role="slider" aria-label="Gire a roleta arrastando" aria-valuetext={spinning ? "Girando" : chosen ? chosen.name : "Pronta para girar"} tabIndex={0}
@@ -124,15 +125,15 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
           </div>
         </div>
 
-        <div className="mt-auto flex h-[31%] w-full shrink-0 flex-col items-center pt-[clamp(18px,2.7dvh,26px)]">
-          {!chosen ? <div className="mt-auto mb-[7%] w-[68%] text-[11px] font-black uppercase tracking-[0.14em] text-[#e9c36d] [text-shadow:0_1px_3px_#000]">{spinning ? "A roleta está girando..." : prizes.length ? "Arraste a roleta e solte" : "Carregando prêmios..."}</div> : <>
-            <div className="w-[calc(100%-40px)] max-w-[330px] px-4 py-1">
+        <div className="mt-auto flex w-full flex-col items-center justify-end pt-3">
+          {!chosen ? <div className="mb-[clamp(12px,2dvh,20px)] w-[76%] rounded-md border border-[#b77a25] bg-[#03111f]/90 px-4 py-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#e9c36d] shadow-[0_0_0_2px_#321c08,0_6px_18px_#000] [text-shadow:0_1px_3px_#000]">{spinning ? "A roleta está girando..." : prizes.length ? "Arraste a roleta e solte" : "Carregando prêmios..."}</div> : <div className="mb-[clamp(8px,1.4dvh,14px)] w-[calc(100%-24px)] max-w-[350px] rounded-md border-2 border-[#c68a2e] bg-[linear-gradient(180deg,rgba(5,26,45,.97),rgba(2,12,23,.98))] px-4 py-3 shadow-[0_0_0_3px_#3b2108,0_0_0_5px_#8e561a,0_8px_24px_#000]">
+            <div className="mx-auto max-w-[320px] px-2">
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#dcae52]">Seu prêmio</p>
               <strong className="mt-1 block font-serif text-xl font-black uppercase tracking-wide text-[#f7d77c] drop-shadow-[0_2px_2px_#000]">{chosen.name}</strong>
               <p className="mx-auto mt-1.5 max-w-[290px] text-xs font-semibold leading-snug text-[#f7e7bd]">{chosen.description}</p>
             </div>
-            <button onClick={onFinish} className="mt-1 inline-flex min-h-10 w-[58%] max-w-[230px] -translate-y-3 items-center justify-center gap-2 rounded-full border border-[#e2b65b] bg-[#8b4d12] px-3 font-serif text-[13px] font-black uppercase text-[#fff0bd] shadow-[0_3px_0_#3b2109] [text-shadow:0_1px_3px_#000] active:translate-y-0.5 active:shadow-none"><RotateCcw size={16} /> Voltar ao início</button>
-          </>}
+            <button onClick={onFinish} className="mt-3 inline-flex min-h-10 w-[68%] max-w-[230px] items-center justify-center gap-2 rounded-full border border-[#e2b65b] bg-[#8b4d12] px-3 font-serif text-[13px] font-black uppercase text-[#fff0bd] shadow-[0_3px_0_#3b2109] [text-shadow:0_1px_3px_#000] active:translate-y-0.5 active:shadow-none"><RotateCcw size={16} /> Voltar ao início</button>
+          </div>}
         </div>
       </div>
     </section>
