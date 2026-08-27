@@ -238,7 +238,7 @@ export default function BarGame() {
       walkerFramesRef.current.jackson = [1, 2, 3, 4].map((column) => isolatePerson(jackson, column, 6, 0, 1.42));
     };
     const ginaldoWalker = new Image();
-    ginaldoWalker.src = "/bar-game/eduardo-walker-sprites.png";
+    ginaldoWalker.src = "/bar-game/eduardo-walker-sprites-v2.png";
     walkerSpriteRefs.current.ginaldo = ginaldoWalker;
     ginaldoWalker.onload = () => {
       walkerFramesRef.current.ginaldo = Array.from({ length: 7 }, (_, column) =>
@@ -529,16 +529,25 @@ export default function BarGame() {
         ? startX + (endX - startX) * progress
         : endX - (endX - startX) * progress;
       const floorY = height * 0.67;
-      const frameDuration = selectedCharacter === "ginaldo" ? 0.095 : 0.14;
+      const frameDuration = selectedCharacter === "ginaldo" ? 0.13 : 0.14;
       const framePosition = frameClock / frameDuration;
       const frameIndex = Math.floor(framePosition) % frames.length;
+      const nextFrameIndex = (frameIndex + 1) % frames.length;
+      const frameBlend = framePosition - Math.floor(framePosition);
+      const smoothBlend = frameBlend * frameBlend * (3 - 2 * frameBlend);
       const walkWave = Math.sin(framePosition * Math.PI);
-      const bob = Math.abs(walkWave) * 3;
+      const bob = Math.abs(walkWave) * (selectedCharacter === "ginaldo" ? 4 : 3);
+      const bodySway = selectedCharacter === "ginaldo" ? Math.sin(framePosition * Math.PI) * 0.012 : 0;
 
       ctx.save();
       ctx.translate(x, bob);
       if (!goingRight) ctx.scale(-1, 1);
+      ctx.rotate(bodySway);
       ctx.drawImage(frames[frameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
+      if (selectedCharacter === "ginaldo") {
+        ctx.globalAlpha = smoothBlend;
+        ctx.drawImage(frames[nextFrameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
+      }
       ctx.restore();
 
       const centerDistance = Math.abs(x - width / 2);
