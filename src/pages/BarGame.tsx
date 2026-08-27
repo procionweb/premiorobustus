@@ -1,9 +1,12 @@
-import { Play } from "lucide-react";
+import { Settings, Play } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { NativeAudio } from "@capacitor-community/native-audio";
+import { useNavigate } from "react-router-dom";
+import BhaskarPrizeRoulette from "@/components/BhaskarPrizeRoulette";
+import { createBarResultId, saveBarResult, type BarGameResult, type BarPrize } from "@/lib/barGameDb";
 
-type Screen = "start" | "selection" | "playing";
+type Screen = "start" | "selection" | "playing" | "roulette";
 type Character = "jackson" | "ginaldo";
 type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number; variant: number };
 
@@ -14,6 +17,7 @@ const NATIVE_MENU_ID = "bhaskar-menu-music";
 const NATIVE_GAME_ID = "bhaskar-game-music";
 
 export default function BarGame() {
+  const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerSpriteRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const playerFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
@@ -40,6 +44,7 @@ export default function BarGame() {
   const [score, setScore] = useState(0);
   const [drunk, setDrunk] = useState(0);
   const [remaining, setRemaining] = useState(GAME_SECONDS);
+  const [finalResult, setFinalResult] = useState<BarGameResult | null>(null);
 
   const ensureNativeMusic = useCallback(() => {
     if (!USE_NATIVE_MUSIC) return Promise.resolve();
@@ -113,6 +118,7 @@ export default function BarGame() {
     setScore(0);
     setDrunk(0);
     setRemaining(GAME_SECONDS);
+    setFinalResult(null);
     setGameRun((run) => run + 1);
     setScreen("playing");
     const music = audioRefs.current.music;
@@ -788,6 +794,7 @@ export default function BarGame() {
       drawBalanceBar();
 
       if (secondsLeft <= 0 || (fellAt >= 0 && elapsed - fellAt >= 1.35)) {
+        stopped = true;
         musicShouldPlayRef.current = false;
         if (USE_NATIVE_MUSIC) switchNativeMusic("menu");
         ["cheer", "music", "burp", "drink"].forEach((key) => {
@@ -797,11 +804,23 @@ export default function BarGame() {
         });
         activeEffectsRef.current.forEach((audio) => audio.pause());
         activeEffectsRef.current.clear();
-        setScore(0);
-        setDrunk(0);
-        setRemaining(GAME_SECONDS);
+        const result: BarGameResult = {
+          id: createBarResultId(),
+          playedAt: new Date().toISOString(),
+          character: selectedCharacter,
+          score: localScore,
+          drunk: Math.round(localDrunk),
+          outcome: fellAt >= 0 ? "fall" : "time",
+          prizeId: null,
+          prizeName: null,
+        };
+        setScore(localScore);
+        setDrunk(Math.round(localDrunk));
+        setRemaining(0);
+        setFinalResult(result);
+        void saveBarResult(result).catch((error) => console.error("Falha ao salvar partida offline", error));
         gameStartingRef.current = false;
-        setScreen("start");
+        setScreen("roulette");
         return;
       }
       animationFrame = requestAnimationFrame(render);
@@ -884,6 +903,7 @@ export default function BarGame() {
             <Play className="h-7 w-7 fill-amber-300 text-amber-300" />
             Jogar
           </button>
+          <button onClick={() => navigate("/bar-game/admin")} aria-label="Abrir administração" className="absolute right-3 top-[max(12px,env(safe-area-inset-top))] z-20 rounded-md border border-white/25 bg-black/45 p-3 text-white/70 backdrop-blur-sm" title="Administração"><Settings /></button>
         </section>
       )}
 
@@ -903,6 +923,24 @@ export default function BarGame() {
             <button aria-label="Voltar" onClick={() => { playUiSound("button"); setScreen("start"); }} className="absolute bottom-0 right-[11%] h-[7%] w-[34%]" />
           </div>
         </section>
+      )}
+
+      {screen === "roulette" && finalResult && (
+        <BhaskarPrizeRoulette
+          score={finalResult.score}
+          onPrize={(prize: BarPrize) => {
+            const updated = { ...finalResult, prizeId: prize.id, prizeName: prize.name };
+            setFinalResult(updated);
+            void saveBarResult(updated).catch((error) => console.error("Falha ao salvar premio offline", error));
+          }}
+          onFinish={() => {
+            setScore(0);
+            setDrunk(0);
+            setRemaining(GAME_SECONDS);
+            setFinalResult(null);
+            setScreen("start");
+          }}
+        />
       )}
 
     </main>
