@@ -881,7 +881,7 @@ export default function BarGame() {
       )}
 
       {screen === "selection" && (
-        <section className="absolute inset-0 z-30 overflow-hidden bg-[#17130e]">
+        <section className="absolute inset-0 z-30 overflow-hidden bg-[linear-gradient(to_bottom,#f4e4b8_0%,#f4e4b8_62%,#0874df_62%,#0757bb_100%)]">
           <div
             className="absolute left-1/2 top-1/2 overflow-hidden -translate-x-1/2 -translate-y-1/2"
             style={{
