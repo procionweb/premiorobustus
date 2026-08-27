@@ -1,5 +1,5 @@
 import { RotateCcw, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getBarPrizes, type BarPrize } from "@/lib/barGameDb";
 
 interface Props { score: number; onPrize: (prize: BarPrize) => void; onFinish: () => void; }
@@ -23,38 +23,6 @@ function PrizeFace({ prize }: { prize: BarPrize | undefined }) {
   return <span className="line-clamp-3 px-1 text-[clamp(8px,2.2vw,11px)] font-black uppercase leading-tight text-[#174b42]">{prize.name}</span>;
 }
 
-function playWheelSound(timers: MutableRefObject<number[]>) {
-  const AudioCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-  if (!AudioCtor) return;
-  const context = new AudioCtor();
-  const master = context.createGain();
-  master.gain.setValueAtTime(0.055, context.currentTime);
-  master.gain.exponentialRampToValueAtTime(0.006, context.currentTime + 4.2);
-  master.connect(context.destination);
-  const motor = context.createOscillator();
-  motor.type = "sawtooth";
-  motor.frequency.setValueAtTime(72, context.currentTime);
-  motor.frequency.exponentialRampToValueAtTime(34, context.currentTime + 4.2);
-  motor.connect(master);
-  motor.start();
-  motor.stop(context.currentTime + 4.25);
-  const click = (elapsed = 0) => {
-    if (elapsed > 4200) { void context.close(); return; }
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    oscillator.type = "square";
-    oscillator.frequency.value = 520 - elapsed * 0.055;
-    gain.gain.setValueAtTime(0.08, context.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.035);
-    oscillator.connect(gain).connect(context.destination);
-    oscillator.start();
-    oscillator.stop(context.currentTime + 0.04);
-    const delay = 58 + Math.pow(elapsed / 4200, 2.8) * 260;
-    timers.current.push(window.setTimeout(() => click(elapsed + delay), delay));
-  };
-  click();
-}
-
 export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props) {
   const [prizes, setPrizes] = useState<BarPrize[]>([]);
   const [reels, setReels] = useState([1, 2, 3]);
@@ -62,10 +30,20 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
   const [spinning, setSpinning] = useState(false);
   const [chosen, setChosen] = useState<BarPrize | null>(null);
   const timers = useRef<number[]>([]);
+  const wheelAudio = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     void getBarPrizes().then((items) => setPrizes(items.filter((item) => item.enabled && item.weight > 0)));
-    return () => timers.current.forEach(window.clearTimeout);
+    const audio = new Audio("/bar-game/audio/roleta.mp3");
+    audio.preload = "auto";
+    audio.volume = 0.9;
+    audio.load();
+    wheelAudio.current = audio;
+    return () => {
+      timers.current.forEach(window.clearTimeout);
+      audio.pause();
+      audio.currentTime = 0;
+    };
   }, []);
 
   const strip = useMemo(() => Array.from({ length: prizes.length * 12 }, (_, index) => prizes[index % prizes.length]), [prizes]);
@@ -73,7 +51,12 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
   const spin = () => {
     if (spinning || chosen || !prizes.length) return;
     setSpinning(true);
-    playWheelSound(timers);
+    const audio = wheelAudio.current;
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+      void audio.play().catch(() => {});
+    }
     const winner = pickPrize(prizes);
     const winnerIndex = prizes.findIndex((prize) => prize.id === winner.id);
     const stopTimes = [3200, 3700, 4200];
@@ -81,6 +64,10 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
     setReelDurations(stopTimes);
     timers.current.push(window.setTimeout(() => setReels(targets), 30));
     timers.current.push(window.setTimeout(() => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
+      }
       setChosen(winner);
       setSpinning(false);
       onPrize(winner);
