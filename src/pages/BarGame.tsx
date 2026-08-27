@@ -243,7 +243,7 @@ export default function BarGame() {
     ginaldoWalker.onload = () => {
       walkerFramesRef.current.ginaldo = [0, 1].flatMap((row) =>
         Array.from({ length: 15 }, (_, column) =>
-          isolatePerson(ginaldoWalker, column, 15, row, row === 1 ? 1.1 : 1.04, 2, 1),
+          isolatePerson(ginaldoWalker, column, 15, row, 1.2, 2, 1),
         ),
       );
     };
