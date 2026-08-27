@@ -529,25 +529,18 @@ export default function BarGame() {
         ? startX + (endX - startX) * progress
         : endX - (endX - startX) * progress;
       const floorY = height * 0.67;
-      const frameDuration = selectedCharacter === "ginaldo" ? 0.13 : 0.14;
+      const frameDuration = selectedCharacter === "ginaldo" ? 0.105 : 0.14;
       const framePosition = frameClock / frameDuration;
       const frameIndex = Math.floor(framePosition) % frames.length;
-      const nextFrameIndex = (frameIndex + 1) % frames.length;
-      const frameBlend = framePosition - Math.floor(framePosition);
-      const smoothBlend = frameBlend * frameBlend * (3 - 2 * frameBlend);
       const walkWave = Math.sin(framePosition * Math.PI);
-      const bob = Math.abs(walkWave) * (selectedCharacter === "ginaldo" ? 4 : 3);
-      const bodySway = selectedCharacter === "ginaldo" ? Math.sin(framePosition * Math.PI) * 0.012 : 0;
+      const bob = Math.abs(walkWave) * (selectedCharacter === "ginaldo" ? 2.5 : 3);
+      const bodySway = selectedCharacter === "ginaldo" ? Math.sin(framePosition * Math.PI) * 0.006 : 0;
 
       ctx.save();
       ctx.translate(x, bob);
       if (!goingRight) ctx.scale(-1, 1);
       ctx.rotate(bodySway);
       ctx.drawImage(frames[frameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
-      if (selectedCharacter === "ginaldo") {
-        ctx.globalAlpha = smoothBlend;
-        ctx.drawImage(frames[nextFrameIndex], -drawW / 2, floorY - drawH, drawW, drawH);
-      }
       ctx.restore();
 
       const centerDistance = Math.abs(x - width / 2);
