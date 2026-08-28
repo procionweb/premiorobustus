@@ -4,6 +4,28 @@ import { useNavigate } from "react-router-dom";
 import { clearBarParticipants, countBarParticipants, getBarParticipants, getBarParticipantsPage, getBarPrizes, saveBarPrizes, type BarParticipant, type BarPrize } from "@/lib/barGameDb";
 import { hasBarAdminPin, setBarAdminPin, verifyBarAdminPin } from "@/lib/barAdminPin";
 
+const reportDateFormatter = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+function formatReportDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : reportDateFormatter.format(date).replace(",", "");
+}
+
+function reportDateStamp() {
+  const parts = reportDateFormatter.formatToParts(new Date());
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
 export default function BhaskarAdmin() {
   const navigate = useNavigate();
   const [authed, setAuthed] = useState(false);
@@ -49,12 +71,13 @@ export default function BhaskarAdmin() {
 
   const exportCsv = async () => {
     const allParticipants = await getBarParticipants();
-    const rows = [["nome", "telefone", "cadastro"], ...allParticipants.map((participant) => [participant.name, participant.phone, participant.createdAt])];
-    const blob = new Blob([rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";")).join("\n")], { type: "text/csv;charset=utf-8" });
+    const rows = [["nome", "telefone", "cadastro"], ...allParticipants.map((participant) => [participant.name, participant.phone, formatReportDate(participant.createdAt)])];
+    const csv = `\uFEFF${rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";")).join("\r\n")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `bhaskar-participantes-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `bhaskar-participantes-${reportDateStamp()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -109,7 +132,7 @@ export default function BhaskarAdmin() {
         <section className="rounded-md border border-amber-400/25 bg-black/35 p-5">
           <div className="flex items-center justify-between"><div><h2 className="text-lg font-black uppercase">Participantes</h2><p className="text-sm text-amber-200">{participantCount} pessoa(s) neste aparelho</p></div><button onClick={async () => { if (window.confirm("Apagar todos os participantes?")) { await clearBarParticipants(); setParticipants([]); setParticipantCount(0); } }} className="p-2 text-red-300" title="Limpar participantes"><Trash2 /></button></div>
           <div className="mt-4 max-h-[65vh] overflow-auto">
-            <table className="w-full text-left text-sm"><thead className="sticky top-0 bg-[#160c08] text-amber-300"><tr><th className="p-2">Nome</th><th className="p-2">Telefone</th><th className="p-2">Cadastro</th></tr></thead><tbody>{participants.map((participant) => <tr key={participant.id} className="border-t border-white/10"><td className="p-2">{participant.name}</td><td className="whitespace-nowrap p-2">{participant.phone}</td><td className="p-2">{new Date(participant.createdAt).toLocaleString("pt-BR")}</td></tr>)}</tbody></table>
+            <table className="w-full text-left text-sm"><thead className="sticky top-0 bg-[#160c08] text-amber-300"><tr><th className="p-2">Nome</th><th className="p-2">Telefone</th><th className="p-2">Cadastro</th></tr></thead><tbody>{participants.map((participant) => <tr key={participant.id} className="border-t border-white/10"><td className="p-2">{participant.name}</td><td className="whitespace-nowrap p-2">{participant.phone}</td><td className="p-2">{formatReportDate(participant.createdAt)}</td></tr>)}</tbody></table>
           </div>
           {participants.length < participantCount && <button onClick={async () => { const next = await getBarParticipantsPage(100, participants.length); setParticipants((current) => [...current, ...next]); }} className="mt-4 min-h-11 w-full rounded-md border border-amber-400/40 font-bold uppercase text-amber-200">Carregar mais</button>}
         </section>
