@@ -15,6 +15,7 @@ export default function BhaskarAdmin() {
   const [participants, setParticipants] = useState<BarParticipant[]>([]);
   const [participantCount, setParticipantCount] = useState(0);
   const [message, setMessage] = useState("");
+  const totalWeight = prizes.reduce((total, prize) => total + (prize.enabled ? Number(prize.weight) || 0 : 0), 0);
 
   useEffect(() => { void hasBarAdminPin().then(setHasPin); }, []);
   useEffect(() => {
@@ -41,6 +42,7 @@ export default function BhaskarAdmin() {
 
   const save = async () => {
     if (!prizes.some((prize) => prize.enabled && prize.weight > 0)) return setMessage("Ative ao menos um prêmio com chance maior que zero.");
+    if (Math.abs(totalWeight - 100) > 0.001) return setMessage(`A soma dos pesos precisa ser exatamente 100%. Total atual: ${totalWeight.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%.`);
     await saveBarPrizes(prizes);
     setMessage("Prêmios salvos no banco offline.");
   };
@@ -84,13 +86,16 @@ export default function BhaskarAdmin() {
       <div className="mx-auto mt-7 grid max-w-5xl gap-6 lg:grid-cols-[1fr_1.2fr]">
         <section className="rounded-md border border-amber-400/25 bg-black/35 p-5">
           <div className="flex items-center justify-between"><h2 className="text-lg font-black uppercase">Prêmios da roleta</h2><button onClick={() => setPrizes((items) => [...items, { id: `${Date.now()}`, name: "Novo prêmio", description: "", weight: 10, enabled: true }])} title="Adicionar prêmio" className="p-2"><Plus /></button></div>
+          <div className={`mt-3 flex items-center justify-between rounded-md border px-3 py-2 text-sm font-black uppercase ${Math.abs(totalWeight - 100) <= 0.001 ? "border-emerald-400/50 bg-emerald-950/35 text-emerald-300" : "border-red-400/50 bg-red-950/35 text-red-300"}`}>
+            <span>Total dos pesos</span><strong>{totalWeight.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% / 100%</strong>
+          </div>
           <div className="mt-4 space-y-3">
             {prizes.map((prize, index) => (
               <div key={prize.id} className="rounded-md bg-white/5 p-2">
                 <div className="grid grid-cols-[auto_1fr_70px_auto] items-center gap-2">
                   <input type="checkbox" checked={prize.enabled} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, enabled: event.target.checked } : item))} />
                   <input value={prize.name} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, name: event.target.value } : item))} className="min-w-0 rounded border border-white/15 bg-[#2b211c] p-2 text-amber-50 outline-none focus:border-amber-400" />
-                  <input type="number" min="0" value={prize.weight} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, weight: Number(event.target.value) } : item))} className="rounded border border-white/15 bg-[#2b211c] p-2 text-amber-50 outline-none focus:border-amber-400" title="Peso" />
+                  <input type="number" min="0" step="0.1" value={prize.weight} onChange={(event) => { setMessage(""); setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, weight: Number(event.target.value) } : item)); }} className="appearance-none rounded border border-white/15 bg-[#2b211c] p-2 text-amber-50 outline-none focus:border-amber-400 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" title="Peso" />
                   <button onClick={() => setPrizes((items) => items.filter((_, itemIndex) => itemIndex !== index))} title="Remover"><Trash2 size={18} /></button>
                 </div>
                 <textarea value={prize.description} onChange={(event) => setPrizes((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, description: event.target.value } : item))} rows={2} placeholder="Descrição exibida ao ganhador" className="mt-2 w-full resize-y rounded border border-white/15 bg-[#2b211c] p-2 text-sm text-amber-50 outline-none placeholder:text-amber-100/35 focus:border-amber-400" />
