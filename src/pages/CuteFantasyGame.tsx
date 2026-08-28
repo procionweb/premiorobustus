@@ -61,7 +61,7 @@ export default function CuteFantasyGame() {
           this.load.image("house", asset("outdoor-decoration/House_1_Wood_Base_Blue.png"));
           this.load.image("tree", asset("outdoor-decoration/Oak_Tree.png"));
           this.load.image("tree-small", asset("outdoor-decoration/Oak_Tree_Small.png"));
-          this.load.spritesheet("bridge", asset("outdoor-decoration/Bridge_Wood.png"), { frameWidth: 48, frameHeight: 64 });
+          this.load.image("bridge-sheet", asset("outdoor-decoration/Bridge_Wood.png"));
           this.load.image("chest", asset("outdoor-decoration/Chest.png"));
         }
 
@@ -69,19 +69,20 @@ export default function CuteFantasyGame() {
           this.physics.world.setBounds(0, 0, 640, 960);
           this.add.tileSprite(320, 480, 640, 960, "grass").setDepth(0);
           this.add.tileSprite(326, 480, 64, 960, "water").setDepth(1);
-          this.add.tileSprite(320, 435, 640, 48, "path").setDepth(2);
-          this.add.tileSprite(230, 650, 144, 112, "farmland").setDepth(2);
-          this.add.image(326, 435, "bridge", 0).setDepth(3);
+          this.add.tileSprite(142, 435, 284, 48, "path").setDepth(2);
+          this.add.tileSprite(504, 435, 272, 48, "path").setDepth(2);
+          this.add.tileSprite(198, 650, 144, 112, "farmland").setDepth(2);
+          this.add.image(326, 435, "bridge-sheet").setCrop(48, 30, 48, 30).setDisplaySize(74, 42).setDepth(5);
 
           const decorFrames = [0, 1, 2, 7, 8, 14, 15, 16, 56, 57, 63, 64, 70, 71];
-          for (let index = 0; index < 72; index += 1) {
+          for (let index = 0; index < 150; index += 1) {
             const x = 18 + ((index * 83) % 604);
             const y = 28 + ((index * 137) % 900);
             const isRiver = x > 284 && x < 368;
             const isPath = y > 400 && y < 470;
             const isHouse = x > 145 && x < 305 && y > 235 && y < 410;
             const isFarm = x > 145 && x < 315 && y > 585 && y < 720;
-            if (!isRiver && !isPath && !isHouse && !isFarm) this.add.sprite(x, y, "decor", decorFrames[index % decorFrames.length]).setDepth(3);
+            if (!isRiver && !isPath && !isHouse && !isFarm) this.add.sprite(x, y, "decor", decorFrames[index % decorFrames.length]).setDepth(3).setAlpha(index % 4 ? 0.82 : 1);
           }
 
           this.add.image(225, 325, "house").setScale(1.25).setDepth(325);
@@ -121,12 +122,14 @@ export default function CuteFantasyGame() {
           this.spawnEnemy(470, 540, "skeleton");
           this.spawnEnemy(205, 820, "slime");
 
-          this.animals = this.physics.add.staticGroup();
-          this.addAnimal(430, 560, "chicken", 0);
-          this.addAnimal(500, 605, "pig", 1);
+          this.animals = this.physics.add.group({ allowGravity: false });
+          this.addAnimal(155, 515, "chicken", 0);
+          this.addAnimal(215, 555, "pig", 1);
           this.addAnimal(455, 735, "cow", 0);
           this.addAnimal(535, 700, "sheep", 2);
           this.physics.add.collider(this.player, this.animals);
+          this.physics.add.collider(this.animals, this.animals);
+          blockers.forEach((blocker) => this.physics.add.collider(this.animals, blocker));
 
           this.physics.add.overlap(this.player, this.enemies, (_player, enemy: any) => this.hurtPlayer(enemy));
           this.cursors = this.input.keyboard?.createCursorKeys();
@@ -136,8 +139,9 @@ export default function CuteFantasyGame() {
         }
 
         addAnimal(x: number, y: number, key: string, frame: number) {
-          const animal = this.animals.create(x, y, key, frame).setScale(2).setDepth(y);
-          animal.refreshBody();
+          const animal = this.animals.create(x, y, key, frame).setScale(2).setDepth(y).setCollideWorldBounds(true);
+          animal.body.setSize(12, 10).setOffset(2, 5);
+          animal.setData({ homeX: x, homeY: y, nextTurn: 0 });
         }
 
         spawnEnemy(x: number, y: number, key: string) {
@@ -209,6 +213,18 @@ export default function CuteFantasyGame() {
           if ((left || right) && (up || down)) this.player.body.velocity.normalize().scale(velocity);
           if (!left && !right && !up && !down) this.player.stop();
           this.player.setDepth(this.player.y);
+          this.animals.getChildren().forEach((animal: any) => {
+            const homeX = animal.getData("homeX");
+            const homeY = animal.getData("homeY");
+            if (this.time.now >= animal.getData("nextTurn")) {
+              const distance = Phaser.Math.Distance.Between(animal.x, animal.y, homeX, homeY);
+              if (distance > 38) this.physics.moveTo(animal, homeX, homeY, 18);
+              else animal.setVelocity(Phaser.Math.Between(-18, 18), Phaser.Math.Between(-12, 12));
+              animal.setData("nextTurn", this.time.now + Phaser.Math.Between(900, 1800));
+            }
+            animal.setFlipX(animal.body.velocity.x < 0);
+            animal.setDepth(animal.y);
+          });
           if (input.attack) { input.attack = false; this.attack(); }
           if (input.interact) { input.interact = false; this.interact(); }
         }
