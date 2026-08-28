@@ -25,12 +25,13 @@ function PrizeFace({ prize }: { prize: BarPrize | undefined }) {
 
 export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props) {
   const [prizes, setPrizes] = useState<BarPrize[]>([]);
-  const [reels, setReels] = useState([1, 2, 3]);
+  const [reels, setReels] = useState([0, 0, 0]);
   const [reelDurations, setReelDurations] = useState([0, 0, 0]);
   const [spinning, setSpinning] = useState(false);
   const [chosen, setChosen] = useState<BarPrize | null>(null);
   const timers = useRef<number[]>([]);
   const wheelAudio = useRef<HTMLAudioElement | null>(null);
+  const prizeAudio = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     void getBarPrizes().then((items) => setPrizes(items.filter((item) => item.enabled && item.weight > 0)));
@@ -39,10 +40,17 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
     audio.volume = 0.9;
     audio.load();
     wheelAudio.current = audio;
+    const winnerAudio = new Audio("/bar-game/audio/premio.mp3");
+    winnerAudio.preload = "auto";
+    winnerAudio.volume = 0.95;
+    winnerAudio.load();
+    prizeAudio.current = winnerAudio;
     return () => {
       timers.current.forEach(window.clearTimeout);
       audio.pause();
       audio.currentTime = 0;
+      winnerAudio.pause();
+      winnerAudio.currentTime = 0;
     };
   }, []);
 
@@ -70,12 +78,19 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
       }
       setChosen(winner);
       setSpinning(false);
+      const winnerSound = prizeAudio.current;
+      if (winnerSound) {
+        winnerSound.pause();
+        winnerSound.currentTime = 0;
+        void winnerSound.play().catch(() => {});
+      }
       onPrize(winner);
     }, stopTimes[2] + 100));
   };
 
   return (
     <section className="absolute inset-0 z-50 min-h-[100dvh] overflow-hidden bg-[#f9b719] text-center text-[#153f38]">
+      <style>{`@keyframes bhaskar-prize-flash { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.9) saturate(1.35); box-shadow: 0 0 24px 8px rgba(255,255,190,.95), inset 0 0 18px rgba(255,255,255,.9); } }`}</style>
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#269d88_0_14%,transparent_14%_87%,#197c79_87%_100%),repeating-conic-gradient(from_245deg_at_50%_48%,rgba(255,255,255,.14)_0deg_8deg,transparent_8deg_18deg),linear-gradient(155deg,#ffd83d,#ff9d13)]" />
       <div className="relative z-10 mx-auto flex h-full min-h-[100dvh] w-full max-w-[430px] flex-col items-center overflow-hidden px-[clamp(14px,4vw,20px)] py-[clamp(12px,2dvh,18px)]">
         <header className="relative flex w-[92%] shrink-0 flex-col items-center justify-center rounded-md border-[3px] border-white bg-[linear-gradient(180deg,#42c1a5,#188a80)] px-4 py-[clamp(8px,1.4dvh,13px)] shadow-[0_0_0_3px_#174b4d,0_6px_0_#0d6662,0_9px_18px_rgba(0,0,0,.25)]">
@@ -87,7 +102,7 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
           <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-[32%] w-[calc(100%+14px)] -translate-x-1/2 -translate-y-1/2 border-y-[3px] border-white bg-[#ffe86b]/12 shadow-[0_0_0_2px_#f49422,0_0_16px_rgba(255,245,142,.85)]" />
           <div className="grid h-[min(61vw,264px)] grid-cols-3 gap-2 overflow-hidden rounded-sm bg-[#135e5b] p-2 shadow-[inset_0_0_15px_rgba(0,0,0,.38)]">
             {reels.map((centerIndex, reelIndex) => (
-              <div key={reelIndex} className="relative overflow-hidden rounded-sm border-[3px] border-white bg-[#dff4d3] shadow-[0_0_0_2px_#f39a21,inset_0_0_10px_rgba(0,0,0,.2)]">
+              <div key={reelIndex} className="relative overflow-hidden rounded-sm border-[3px] border-white bg-[#dff4d3] shadow-[0_0_0_2px_#f39a21,inset_0_0_10px_rgba(0,0,0,.2)]" style={chosen ? { animation: `bhaskar-prize-flash 360ms ease-in-out ${4 + reelIndex}` } : undefined}>
                 <div
                   className="absolute left-0 top-1/3 w-full will-change-transform"
                   style={{

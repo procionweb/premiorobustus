@@ -776,7 +776,7 @@ export default function BarGame() {
       if (keyboardDirection !== 0) {
         targetX = Math.max(45, Math.min(width - 45, targetX + keyboardDirection * 330 * dt));
       }
-      const delayedTarget = targetX + Math.sin(elapsed * (3 + intoxication * 5)) * 38 * intoxication;
+      const delayedTarget = targetX;
       const response = Math.max(2.4, 10 - intoxication * 7);
       const desiredVelocity = (delayedTarget - playerX) * response;
       const maxSpeed = Math.max(90, 520 - intoxication * 300);
