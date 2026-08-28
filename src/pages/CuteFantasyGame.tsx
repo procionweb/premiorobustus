@@ -14,7 +14,8 @@ interface Controls {
 }
 
 const initialControls: Controls = { up: false, down: false, left: false, right: false, attack: false, interact: false };
-const asset = (path: string) => `/cute-fantasy/${path}`;
+const asset = (path: string) => `/cute-fantasy-premium/${path}`;
+const freeAsset = (path: string) => `/cute-fantasy/${path}`;
 
 export default function CuteFantasyGame() {
   const navigate = useNavigate();
@@ -46,48 +47,34 @@ export default function CuteFantasyGame() {
         constructor() { super("cute-fantasy"); }
 
         preload() {
-          this.load.spritesheet("player", asset("Player/Player.png"), { frameWidth: 32, frameHeight: 32 });
-          this.load.spritesheet("skeleton", asset("Enemies/Skeleton.png"), { frameWidth: 32, frameHeight: 32 });
-          this.load.spritesheet("slime", asset("Enemies/Slime_Green.png"), { frameWidth: 32, frameHeight: 32 });
-          this.load.spritesheet("chicken", asset("Animals/Chicken/Chicken.png"), { frameWidth: 16, frameHeight: 16 });
-          this.load.spritesheet("cow", asset("Animals/Cow/Cow.png"), { frameWidth: 16, frameHeight: 16 });
-          this.load.spritesheet("pig", asset("Animals/Pig/Pig.png"), { frameWidth: 16, frameHeight: 16 });
-          this.load.spritesheet("sheep", asset("Animals/Sheep/Sheep.png"), { frameWidth: 16, frameHeight: 16 });
-          this.load.image("grass", asset("Tiles/Grass_Middle.png"));
-          this.load.image("water", asset("Tiles/Water_Middle.png"));
-          this.load.image("path", asset("Tiles/Path_Middle.png"));
-          this.load.image("farmland", asset("Tiles/FarmLand_Tile.png"));
-          this.load.spritesheet("decor", asset("outdoor-decoration/Outdoor_Decor_Free.png"), { frameWidth: 16, frameHeight: 16 });
-          this.load.image("house", asset("outdoor-decoration/House_1_Wood_Base_Blue.png"));
-          this.load.image("tree", asset("outdoor-decoration/Oak_Tree.png"));
-          this.load.image("tree-small", asset("outdoor-decoration/Oak_Tree_Small.png"));
-          this.load.image("bridge-sheet", asset("outdoor-decoration/Bridge_Wood.png"));
-          this.load.image("chest", asset("outdoor-decoration/Chest.png"));
+          this.load.spritesheet("player", freeAsset("Player/Player.png"), { frameWidth: 32, frameHeight: 32 });
+          this.load.spritesheet("skeleton", freeAsset("Enemies/Skeleton.png"), { frameWidth: 32, frameHeight: 32 });
+          this.load.spritesheet("slime", freeAsset("Enemies/Slime_Green.png"), { frameWidth: 32, frameHeight: 32 });
+          this.load.spritesheet("chicken", asset("Animals/Chicken/Chicken_01.png"), { frameWidth: 16, frameHeight: 16 });
+          this.load.spritesheet("cow", asset("Animals/Cow/Cow_01.png"), { frameWidth: 16, frameHeight: 16 });
+          this.load.spritesheet("pig", asset("Animals/Pig/Pig_01.png"), { frameWidth: 16, frameHeight: 16 });
+          this.load.spritesheet("sheep", asset("Animals/Sheep/Sheep_01.png"), { frameWidth: 16, frameHeight: 16 });
+          this.load.image("grass", asset("Tiles/Grass/Grass_1_Middle.png"));
+          this.load.image("path", asset("Tiles/Grass/Path_Middle.png"));
+          this.load.image("water", asset("Tiles/Water/Water_Middle.png"));
+          this.load.spritesheet("flowers", asset("Outdoor decoration/Flowers.png"), { frameWidth: 16, frameHeight: 16 });
+          this.load.image("house", asset("Buildings/Buildings/Houses/Wood/House_1_Wood_Base_Blue.png"));
+          this.load.image("tree", asset("Trees/Big_Oak_Tree.png"));
+          this.load.image("tree-small", asset("Trees/Small_Oak_Tree.png"));
+          this.load.image("chest", asset("Buildings/House_Decor/Chest_Anim.png"));
         }
 
         create() {
           this.physics.world.setBounds(0, 0, 640, 960);
           this.add.tileSprite(320, 480, 640, 960, "grass").setDepth(0);
-          this.add.tileSprite(326, 480, 64, 960, "water").setDepth(1);
-          this.add.tileSprite(142, 435, 284, 48, "path").setDepth(2);
-          this.add.tileSprite(504, 435, 272, 48, "path").setDepth(2);
-          this.add.tileSprite(198, 650, 144, 112, "farmland").setDepth(2);
-          this.add.image(326, 435, "bridge-sheet").setCrop(48, 30, 48, 30).setDisplaySize(74, 42).setDepth(5);
+          this.add.tileSprite(320, 510, 80, 900, "path").setDepth(1);
 
-          const decorFrames = [0, 1, 2, 7, 8, 14, 15, 16, 56, 57, 63, 64, 70, 71];
-          for (let index = 0; index < 150; index += 1) {
-            const x = 18 + ((index * 83) % 604);
-            const y = 28 + ((index * 137) % 900);
-            const isRiver = x > 284 && x < 368;
-            const isPath = y > 400 && y < 470;
-            const isHouse = x > 145 && x < 305 && y > 235 && y < 410;
-            const isFarm = x > 145 && x < 315 && y > 585 && y < 720;
-            if (!isRiver && !isPath && !isHouse && !isFarm) this.add.sprite(x, y, "decor", decorFrames[index % decorFrames.length]).setDepth(3).setAlpha(index % 4 ? 0.82 : 1);
-          }
+          const flowerSpots = [[205, 385], [435, 390], [195, 535], [448, 555], [210, 700], [430, 720], [250, 795], [400, 790]];
+          flowerSpots.forEach(([x, y], index) => this.add.sprite(x, y, "flowers", index % 6).setDepth(y));
 
-          this.add.image(225, 325, "house").setScale(1.25).setDepth(325);
-          const largeTrees = [[68, 245], [270, 310], [76, 530], [555, 165], [78, 810], [548, 790], [505, 900]];
-          const smallTrees = [[250, 470], [425, 245], [210, 760], [445, 680]];
+          this.add.image(320, 325, "house").setScale(1.2).setDepth(370);
+          const largeTrees = [[190, 285], [450, 285], [185, 520], [455, 540], [185, 760], [455, 775]];
+          const smallTrees = [[230, 425], [420, 430], [235, 675], [410, 680]];
           largeTrees.forEach(([x, y]) => this.add.image(x, y, "tree").setDepth(y));
           smallTrees.forEach(([x, y]) => this.add.image(x, y, "tree-small").setDepth(y));
 
@@ -97,9 +84,7 @@ export default function CuteFantasyGame() {
             this.physics.add.existing(zone, true);
             blockers.push(zone);
           };
-          addBlocker(326, 200, 64, 400);
-          addBlocker(326, 714, 64, 492);
-          addBlocker(225, 360, 118, 62);
+          addBlocker(320, 355, 118, 62);
           largeTrees.forEach(([x, y]) => addBlocker(x, y + 20, 18, 18));
           smallTrees.forEach(([x, y]) => addBlocker(x, y + 12, 14, 14));
 
@@ -109,24 +94,24 @@ export default function CuteFantasyGame() {
           this.anims.create({ key: "skeleton-walk", frames: this.anims.generateFrameNumbers("skeleton", { start: 0, end: 5 }), frameRate: 7, repeat: -1 });
           this.anims.create({ key: "slime-bounce", frames: this.anims.generateFrameNumbers("slime", { start: 0, end: 7 }), frameRate: 7, repeat: -1 });
 
-          this.player = this.physics.add.sprite(285, 520, "player", 0).setDepth(520).setCollideWorldBounds(true);
+          this.player = this.physics.add.sprite(320, 515, "player", 0).setScale(1.2).setDepth(515).setCollideWorldBounds(true);
           this.player.body.setSize(16, 14).setOffset(8, 17);
           blockers.forEach((blocker) => this.physics.add.collider(this.player, blocker));
-          this.cameras.main.setBounds(0, 0, 640, 960).startFollow(this.player, true, 0.11, 0.11).setZoom(1.6);
+          this.cameras.main.setBounds(0, 0, 640, 960).startFollow(this.player, true, 0.11, 0.11).setZoom(1.25);
           this.cameras.main.setBackgroundColor("#75a84c");
 
-          this.chest = this.physics.add.staticImage(485, 335, "chest").setScale(1.35).setDepth(335);
+          this.chest = this.physics.add.staticImage(390, 450, "chest").setCrop(0, 0, 16, 16).setScale(1.2).setDepth(450);
           this.chest.refreshBody();
           this.physics.add.collider(this.player, this.chest);
           this.enemies = this.physics.add.group();
-          this.spawnEnemy(470, 540, "skeleton");
-          this.spawnEnemy(205, 820, "slime");
+          this.spawnEnemy(410, 610, "skeleton");
+          this.spawnEnemy(255, 810, "slime");
 
           this.animals = this.physics.add.group({ allowGravity: false });
-          this.addAnimal(155, 515, "chicken", 0);
-          this.addAnimal(215, 555, "pig", 1);
-          this.addAnimal(455, 735, "cow", 0);
-          this.addAnimal(535, 700, "sheep", 2);
+          this.addAnimal(235, 490, "chicken", 0);
+          this.addAnimal(225, 590, "pig", 0);
+          this.addAnimal(410, 570, "cow", 0);
+          this.addAnimal(420, 700, "sheep", 0);
           this.physics.add.collider(this.player, this.animals);
           this.physics.add.collider(this.animals, this.animals);
           blockers.forEach((blocker) => this.physics.add.collider(this.animals, blocker));
@@ -139,7 +124,7 @@ export default function CuteFantasyGame() {
         }
 
         addAnimal(x: number, y: number, key: string, frame: number) {
-          const animal = this.animals.create(x, y, key, frame).setScale(2).setDepth(y).setCollideWorldBounds(true);
+          const animal = this.animals.create(x, y, key, frame).setScale(1.15).setDepth(y).setCollideWorldBounds(true);
           animal.body.setSize(12, 10).setOffset(2, 5);
           animal.setData({ homeX: x, homeY: y, nextTurn: 0 });
         }
