@@ -36,6 +36,7 @@ import OfflineCatchGame from './pages/tablet-offline/OfflineCatchGame';
 import OfflineValidatePrize from './pages/tablet-offline/OfflineValidatePrize';
 import BarGame from './pages/BarGame';
 import BhaskarAdmin from './pages/BhaskarAdmin';
+import CuteFantasyGame from './pages/CuteFantasyGame';
 import AdminRelatorioOffline from './pages/AdminRelatorioOffline';
 import { OFFLINE_MEMORY_PRODUCTS } from './pages/tablet-offline/offlineAssets';
 import { MobileOfflineAuth } from './components/auth/MobileOfflineAuth';
@@ -780,6 +781,7 @@ const App = () => {
           <Route path="/tablet-offline/validar-brinde" element={<OfflineValidatePrize />} />
           <Route path="/bar-game" element={<BarGame />} />
           <Route path="/bar-game/admin" element={<BhaskarAdmin />} />
+          <Route path="/cute-fantasy" element={<CuteFantasyGame />} />
         </Routes>
       <Toaster position="top-center" richColors />
     </BrowserRouter>
