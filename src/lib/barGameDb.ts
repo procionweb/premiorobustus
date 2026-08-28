@@ -1,3 +1,6 @@
+import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from "@capacitor-community/sqlite";
+import { Capacitor } from "@capacitor/core";
+
 export type BarCharacter = "jackson" | "ginaldo";
 
 export interface BarPrize {
@@ -42,6 +45,9 @@ const DB_VERSION = 2;
 const SETTINGS = "settings";
 const RESULTS = "results";
 const PARTICIPANTS = "participants";
+const NATIVE_DB_NAME = "bhaskar_participants";
+const sqlite = new SQLiteConnection(CapacitorSQLite);
+let nativeDbPromise: Promise<SQLiteDBConnection> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -63,7 +69,61 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
+async function getIndexedParticipants(): Promise<BarParticipant[]> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(PARTICIPANTS, "readonly").objectStore(PARTICIPANTS).getAll();
+    request.onsuccess = () => resolve(request.result as BarParticipant[]);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getNativeDb(): Promise<SQLiteDBConnection> {
+  if (!nativeDbPromise) {
+    nativeDbPromise = (async () => {
+      const consistent = await sqlite.checkConnectionsConsistency();
+      const existing = await sqlite.isConnection(NATIVE_DB_NAME, false);
+      const db = consistent.result && existing.result
+        ? await sqlite.retrieveConnection(NATIVE_DB_NAME, false)
+        : await sqlite.createConnection(NATIVE_DB_NAME, false, "no-encryption", 1, false);
+      if (!(await db.isDBOpen()).result) await db.open();
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS participants (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_participants_created_at ON participants(created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_participants_phone ON participants(phone);
+      `);
+
+      // Preserve registrations made by builds that still used IndexedDB.
+      const legacy = await getIndexedParticipants().catch(() => []);
+      if (legacy.length) {
+        await db.executeSet(legacy.map((participant) => ({
+          statement: "INSERT OR IGNORE INTO participants (id, name, phone, created_at) VALUES (?, ?, ?, ?)",
+          values: [participant.id, participant.name, participant.phone, participant.createdAt],
+        })));
+      }
+      return db;
+    })().catch((error) => {
+      nativeDbPromise = null;
+      throw error;
+    });
+  }
+  return nativeDbPromise;
+}
+
 export async function saveBarParticipant(participant: BarParticipant): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    const db = await getNativeDb();
+    await db.run(
+      "INSERT INTO participants (id, name, phone, created_at) VALUES (?, ?, ?, ?)",
+      [participant.id, participant.name, participant.phone, participant.createdAt],
+    );
+    return;
+  }
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(PARTICIPANTS, "readwrite");
@@ -74,15 +134,43 @@ export async function saveBarParticipant(participant: BarParticipant): Promise<v
 }
 
 export async function getBarParticipants(): Promise<BarParticipant[]> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const request = db.transaction(PARTICIPANTS, "readonly").objectStore(PARTICIPANTS).getAll();
-    request.onsuccess = () => resolve((request.result as BarParticipant[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
-    request.onerror = () => reject(request.error);
-  });
+  if (Capacitor.isNativePlatform()) {
+    const db = await getNativeDb();
+    const result = await db.query("SELECT id, name, phone, created_at AS createdAt FROM participants ORDER BY created_at DESC");
+    return (result.values ?? []) as BarParticipant[];
+  }
+  const participants = await getIndexedParticipants();
+  return participants.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+export async function getBarParticipantsPage(limit = 100, offset = 0): Promise<BarParticipant[]> {
+  if (Capacitor.isNativePlatform()) {
+    const db = await getNativeDb();
+    const result = await db.query(
+      "SELECT id, name, phone, created_at AS createdAt FROM participants ORDER BY created_at DESC LIMIT ? OFFSET ?",
+      [limit, offset],
+    );
+    return (result.values ?? []) as BarParticipant[];
+  }
+  const participants = await getIndexedParticipants();
+  return participants.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(offset, offset + limit);
+}
+
+export async function countBarParticipants(): Promise<number> {
+  if (Capacitor.isNativePlatform()) {
+    const db = await getNativeDb();
+    const result = await db.query("SELECT COUNT(*) AS total FROM participants");
+    return Number(result.values?.[0]?.total ?? 0);
+  }
+  return (await getIndexedParticipants()).length;
 }
 
 export async function clearBarParticipants(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    const db = await getNativeDb();
+    await db.run("DELETE FROM participants");
+    return;
+  }
   const db = await openDb();
   await new Promise<void>((resolve, reject) => {
     const transaction = db.transaction(PARTICIPANTS, "readwrite");

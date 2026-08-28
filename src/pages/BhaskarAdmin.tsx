@@ -1,7 +1,7 @@
 import { ArrowLeft, Download, LockKeyhole, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearBarParticipants, getBarParticipants, getBarPrizes, saveBarPrizes, type BarParticipant, type BarPrize } from "@/lib/barGameDb";
+import { clearBarParticipants, countBarParticipants, getBarParticipants, getBarParticipantsPage, getBarPrizes, saveBarPrizes, type BarParticipant, type BarPrize } from "@/lib/barGameDb";
 import { hasBarAdminPin, setBarAdminPin, verifyBarAdminPin } from "@/lib/barAdminPin";
 
 export default function BhaskarAdmin() {
@@ -13,14 +13,16 @@ export default function BhaskarAdmin() {
   const [error, setError] = useState("");
   const [prizes, setPrizes] = useState<BarPrize[]>([]);
   const [participants, setParticipants] = useState<BarParticipant[]>([]);
+  const [participantCount, setParticipantCount] = useState(0);
   const [message, setMessage] = useState("");
 
   useEffect(() => { void hasBarAdminPin().then(setHasPin); }, []);
   useEffect(() => {
     if (!authed) return;
-    void Promise.all([getBarPrizes(), getBarParticipants()]).then(([nextPrizes, nextParticipants]) => {
+    void Promise.all([getBarPrizes(), getBarParticipantsPage(100, 0), countBarParticipants()]).then(([nextPrizes, nextParticipants, total]) => {
       setPrizes(nextPrizes);
       setParticipants(nextParticipants);
+      setParticipantCount(total);
     });
   }, [authed]);
 
@@ -43,8 +45,9 @@ export default function BhaskarAdmin() {
     setMessage("Prêmios salvos no banco offline.");
   };
 
-  const exportCsv = () => {
-    const rows = [["nome", "telefone", "cadastro"], ...participants.map((participant) => [participant.name, participant.phone, participant.createdAt])];
+  const exportCsv = async () => {
+    const allParticipants = await getBarParticipants();
+    const rows = [["nome", "telefone", "cadastro"], ...allParticipants.map((participant) => [participant.name, participant.phone, participant.createdAt])];
     const blob = new Blob([rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";")).join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -75,7 +78,7 @@ export default function BhaskarAdmin() {
       <header className="mx-auto flex max-w-5xl items-center justify-between">
         <button onClick={() => navigate("/bar-game")} className="rounded-md border border-white/20 p-3" title="Voltar"><ArrowLeft /></button>
         <div className="text-center"><p className="text-xs font-black uppercase text-amber-400">Painel offline</p><h1 className="text-2xl font-black uppercase">Bhaskar</h1></div>
-        <button onClick={exportCsv} className="rounded-md border border-white/20 p-3" title="Exportar CSV"><Download /></button>
+        <button onClick={() => void exportCsv()} className="rounded-md border border-white/20 p-3" title="Exportar CSV"><Download /></button>
       </header>
 
       <div className="mx-auto mt-7 grid max-w-5xl gap-6 lg:grid-cols-[1fr_1.2fr]">
@@ -99,10 +102,11 @@ export default function BhaskarAdmin() {
         </section>
 
         <section className="rounded-md border border-amber-400/25 bg-black/35 p-5">
-          <div className="flex items-center justify-between"><div><h2 className="text-lg font-black uppercase">Participantes</h2><p className="text-sm text-amber-200">{participants.length} pessoa(s) neste aparelho</p></div><button onClick={async () => { if (window.confirm("Apagar todos os participantes?")) { await clearBarParticipants(); setParticipants([]); } }} className="p-2 text-red-300" title="Limpar participantes"><Trash2 /></button></div>
+          <div className="flex items-center justify-between"><div><h2 className="text-lg font-black uppercase">Participantes</h2><p className="text-sm text-amber-200">{participantCount} pessoa(s) neste aparelho</p></div><button onClick={async () => { if (window.confirm("Apagar todos os participantes?")) { await clearBarParticipants(); setParticipants([]); setParticipantCount(0); } }} className="p-2 text-red-300" title="Limpar participantes"><Trash2 /></button></div>
           <div className="mt-4 max-h-[65vh] overflow-auto">
             <table className="w-full text-left text-sm"><thead className="sticky top-0 bg-[#160c08] text-amber-300"><tr><th className="p-2">Nome</th><th className="p-2">Telefone</th><th className="p-2">Cadastro</th></tr></thead><tbody>{participants.map((participant) => <tr key={participant.id} className="border-t border-white/10"><td className="p-2">{participant.name}</td><td className="whitespace-nowrap p-2">{participant.phone}</td><td className="p-2">{new Date(participant.createdAt).toLocaleString("pt-BR")}</td></tr>)}</tbody></table>
           </div>
+          {participants.length < participantCount && <button onClick={async () => { const next = await getBarParticipantsPage(100, participants.length); setParticipants((current) => [...current, ...next]); }} className="mt-4 min-h-11 w-full rounded-md border border-amber-400/40 font-bold uppercase text-amber-200">Carregar mais</button>}
         </section>
       </div>
     </main>
