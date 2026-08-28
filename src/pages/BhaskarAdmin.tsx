@@ -1,7 +1,7 @@
 import { ArrowLeft, Download, LockKeyhole, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { clearBarResults, getBarPrizes, getBarResults, saveBarPrizes, type BarGameResult, type BarPrize } from "@/lib/barGameDb";
+import { clearBarParticipants, getBarParticipants, getBarPrizes, saveBarPrizes, type BarParticipant, type BarPrize } from "@/lib/barGameDb";
 import { hasBarAdminPin, setBarAdminPin, verifyBarAdminPin } from "@/lib/barAdminPin";
 
 export default function BhaskarAdmin() {
@@ -12,15 +12,15 @@ export default function BhaskarAdmin() {
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [prizes, setPrizes] = useState<BarPrize[]>([]);
-  const [results, setResults] = useState<BarGameResult[]>([]);
+  const [participants, setParticipants] = useState<BarParticipant[]>([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => { void hasBarAdminPin().then(setHasPin); }, []);
   useEffect(() => {
     if (!authed) return;
-    void Promise.all([getBarPrizes(), getBarResults()]).then(([nextPrizes, nextResults]) => {
+    void Promise.all([getBarPrizes(), getBarParticipants()]).then(([nextPrizes, nextParticipants]) => {
       setPrizes(nextPrizes);
-      setResults(nextResults);
+      setParticipants(nextParticipants);
     });
   }, [authed]);
 
@@ -44,12 +44,12 @@ export default function BhaskarAdmin() {
   };
 
   const exportCsv = () => {
-    const rows = [["data", "personagem", "pontos", "embriaguez", "fim", "premio"], ...results.map((result) => [result.playedAt, result.character, result.score, result.drunk, result.outcome, result.prizeName ?? ""])];
+    const rows = [["nome", "telefone", "cadastro"], ...participants.map((participant) => [participant.name, participant.phone, participant.createdAt])];
     const blob = new Blob([rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(";")).join("\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `bhaskar-resultados-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `bhaskar-participantes-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -99,9 +99,9 @@ export default function BhaskarAdmin() {
         </section>
 
         <section className="rounded-md border border-amber-400/25 bg-black/35 p-5">
-          <div className="flex items-center justify-between"><div><h2 className="text-lg font-black uppercase">Partidas</h2><p className="text-sm text-amber-200">{results.length} registros neste aparelho</p></div><button onClick={async () => { if (window.confirm("Apagar todo o histórico offline?")) { await clearBarResults(); setResults([]); } }} className="p-2 text-red-300" title="Limpar histórico"><Trash2 /></button></div>
+          <div className="flex items-center justify-between"><div><h2 className="text-lg font-black uppercase">Participantes</h2><p className="text-sm text-amber-200">{participants.length} pessoa(s) neste aparelho</p></div><button onClick={async () => { if (window.confirm("Apagar todos os participantes?")) { await clearBarParticipants(); setParticipants([]); } }} className="p-2 text-red-300" title="Limpar participantes"><Trash2 /></button></div>
           <div className="mt-4 max-h-[65vh] overflow-auto">
-            <table className="w-full text-left text-sm"><thead className="sticky top-0 bg-[#160c08] text-amber-300"><tr><th className="p-2">Data</th><th className="p-2">Personagem</th><th className="p-2">Pontos</th><th className="p-2">Prêmio</th></tr></thead><tbody>{results.map((result) => <tr key={result.id} className="border-t border-white/10"><td className="p-2">{new Date(result.playedAt).toLocaleString("pt-BR")}</td><td className="p-2 capitalize">{result.character}</td><td className="p-2">{result.score}</td><td className="p-2">{result.prizeName ?? "Aguardando giro"}</td></tr>)}</tbody></table>
+            <table className="w-full text-left text-sm"><thead className="sticky top-0 bg-[#160c08] text-amber-300"><tr><th className="p-2">Nome</th><th className="p-2">Telefone</th><th className="p-2">Cadastro</th></tr></thead><tbody>{participants.map((participant) => <tr key={participant.id} className="border-t border-white/10"><td className="p-2">{participant.name}</td><td className="whitespace-nowrap p-2">{participant.phone}</td><td className="p-2">{new Date(participant.createdAt).toLocaleString("pt-BR")}</td></tr>)}</tbody></table>
           </div>
         </section>
       </div>

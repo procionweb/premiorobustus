@@ -19,6 +19,13 @@ export interface BarGameResult {
   prizeName: string | null;
 }
 
+export interface BarParticipant {
+  id: string;
+  name: string;
+  phone: string;
+  createdAt: string;
+}
+
 export const DEFAULT_BAR_PRIZES: BarPrize[] = [
   { id: "off-5", name: "5% OFF", description: "Você ganhou 5% OFF em qualquer compra Bhaskar.", weight: 12.5, enabled: true },
   { id: "dupla", name: "Dupla Bhaskar", description: "Compre uma Bhaskar 275 ml e ganhe 10% OFF em uma garrafa de 750 ml.", weight: 12.5, enabled: true },
@@ -31,9 +38,10 @@ export const DEFAULT_BAR_PRIZES: BarPrize[] = [
 ];
 
 const DB_NAME = "bhaskar.bar.offline.v1";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const SETTINGS = "settings";
 const RESULTS = "results";
+const PARTICIPANTS = "participants";
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -45,10 +53,49 @@ function openDb(): Promise<IDBDatabase> {
         const store = db.createObjectStore(RESULTS, { keyPath: "id" });
         store.createIndex("playedAt", "playedAt");
       }
+      if (!db.objectStoreNames.contains(PARTICIPANTS)) {
+        const store = db.createObjectStore(PARTICIPANTS, { keyPath: "id" });
+        store.createIndex("createdAt", "createdAt");
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
+}
+
+export async function saveBarParticipant(participant: BarParticipant): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(PARTICIPANTS, "readwrite");
+    transaction.objectStore(PARTICIPANTS).put(participant);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+export async function getBarParticipants(): Promise<BarParticipant[]> {
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(PARTICIPANTS, "readonly").objectStore(PARTICIPANTS).getAll();
+    request.onsuccess = () => resolve((request.result as BarParticipant[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    request.onerror = () => reject(request.error);
+  });
+}
+
+export async function clearBarParticipants(): Promise<void> {
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = db.transaction(PARTICIPANTS, "readwrite");
+    transaction.objectStore(PARTICIPANTS).clear();
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+}
+
+export function createBarParticipantId(): string {
+  return typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export async function getBarPrizes(): Promise<BarPrize[]> {

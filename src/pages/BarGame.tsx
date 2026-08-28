@@ -4,9 +4,9 @@ import { Capacitor } from "@capacitor/core";
 import { NativeAudio } from "@capacitor-community/native-audio";
 import { useNavigate } from "react-router-dom";
 import BhaskarPrizeRoulette from "@/components/BhaskarPrizeRoulette";
-import { createBarResultId, saveBarResult, type BarGameResult, type BarPrize } from "@/lib/barGameDb";
+import { createBarParticipantId, createBarResultId, saveBarParticipant, type BarGameResult, type BarPrize } from "@/lib/barGameDb";
 
-type Screen = "start" | "selection" | "playing" | "roulette";
+type Screen = "start" | "register" | "selection" | "playing" | "roulette";
 type Character = "jackson" | "ginaldo";
 type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number; variant: number };
 
@@ -48,8 +48,40 @@ export default function BarGame() {
   const [drunk, setDrunk] = useState(0);
   const [remaining, setRemaining] = useState(GAME_SECONDS);
   const [finalResult, setFinalResult] = useState<BarGameResult | null>(null);
+  const [participantName, setParticipantName] = useState("");
+  const [participantPhone, setParticipantPhone] = useState("");
+  const [registerError, setRegisterError] = useState("");
+  const [savingParticipant, setSavingParticipant] = useState(false);
 
   useEffect(() => { screenRef.current = screen; }, [screen]);
+
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 11);
+    if (digits.length <= 2) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+    if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  };
+
+  const submitParticipant = async () => {
+    const name = participantName.trim().replace(/\s+/g, " ");
+    const phone = participantPhone.replace(/\D/g, "");
+    if (!name || !phone) {
+      setRegisterError("Preencha o nome e o telefone para continuar.");
+      return;
+    }
+    setSavingParticipant(true);
+    setRegisterError("");
+    try {
+      await saveBarParticipant({ id: createBarParticipantId(), name, phone: formatPhone(phone), createdAt: new Date().toISOString() });
+      setScreen("selection");
+    } catch (error) {
+      console.error("Falha ao salvar participante offline", error);
+      setRegisterError("Não foi possível salvar neste aparelho. Tente novamente.");
+    } finally {
+      setSavingParticipant(false);
+    }
+  };
 
   const ensureNativeMusic = useCallback(() => {
     if (!USE_NATIVE_MUSIC) return Promise.resolve();
@@ -314,7 +346,7 @@ export default function BarGame() {
       if (USE_NATIVE_MUSIC) return;
       if (document.hidden) return;
       if (screenRef.current === "playing" && audio.music.paused) void audio.music.play().catch(() => {});
-      if ((screenRef.current === "start" || screenRef.current === "selection") && audio.menu.paused) void audio.menu.play().catch(() => {});
+      if (["start", "register", "selection"].includes(screenRef.current) && audio.menu.paused) void audio.menu.play().catch(() => {});
     };
     const resumeTimer = window.setInterval(resumeActiveMusic, 900);
     document.addEventListener("visibilitychange", resumeActiveMusic);
@@ -343,7 +375,7 @@ export default function BarGame() {
       return;
     }
     const startMenuMusic = () => {
-      if ((screen === "start" || screen === "selection") && menu.paused) void menu.play().catch(() => {});
+      if (["start", "register", "selection"].includes(screen) && menu.paused) void menu.play().catch(() => {});
     };
     startMenuMusic();
     window.addEventListener("pointerdown", startMenuMusic, { once: true });
@@ -839,7 +871,6 @@ export default function BarGame() {
         setDrunk(Math.round(localDrunk));
         setRemaining(0);
         setFinalResult(result);
-        void saveBarResult(result).catch((error) => console.error("Falha ao salvar partida offline", error));
         gameStartingRef.current = false;
         setScreen("roulette");
         return;
@@ -917,7 +948,10 @@ export default function BarGame() {
               playUiSound("button");
               const menu = audioRefs.current.menu;
               if (!USE_NATIVE_MUSIC && menu?.paused) void menu.play().catch(() => {});
-              setScreen("selection");
+              setParticipantName("");
+              setParticipantPhone("");
+              setRegisterError("");
+              setScreen("register");
             }}
             className="absolute bottom-[max(34px,calc(env(safe-area-inset-bottom)+22px))] left-1/2 z-10 flex min-h-16 -translate-x-1/2 items-center gap-3 rounded-md border-2 border-amber-300 bg-[#101827]/95 px-12 py-4 text-xl font-black uppercase text-amber-100 shadow-[0_0_0_3px_#713f12,0_7px_0_#422006,0_0_28px_rgba(37,99,235,0.75)] transition-transform hover:scale-105 active:translate-y-1 active:shadow-[0_0_0_3px_#713f12,0_2px_0_#422006]"
           >
@@ -925,6 +959,56 @@ export default function BarGame() {
             Jogar
           </button>
           <button onClick={() => navigate("/bar-game/admin")} aria-label="Abrir administração" className="absolute right-3 top-[max(12px,env(safe-area-inset-top))] z-20 rounded-md border border-white/25 bg-black/45 p-3 text-white/70 backdrop-blur-sm" title="Administração"><Settings /></button>
+        </section>
+      )}
+
+      {screen === "register" && (
+        <section className="absolute inset-0 z-30 grid place-items-center overflow-y-auto bg-[radial-gradient(circle_at_50%_12%,rgba(180,105,25,.26),transparent_35%),linear-gradient(180deg,#24130b,#100806)] p-5 pt-[max(20px,env(safe-area-inset-top))] pb-[max(20px,env(safe-area-inset-bottom))] touch-pan-y">
+          <form
+            onSubmit={(event) => { event.preventDefault(); void submitParticipant(); }}
+            className="w-full max-w-md rounded-md border-2 border-amber-500/70 bg-[#160d09]/95 p-6 shadow-[0_0_0_4px_rgba(70,35,10,.9),0_24px_70px_rgba(0,0,0,.65)]"
+          >
+            <div className="text-center">
+              <p className="text-xs font-black uppercase tracking-[.28em] text-amber-400">Bhaskar Licores</p>
+              <h1 className="mt-2 text-3xl font-black uppercase text-amber-100">Antes de jogar</h1>
+              <p className="mt-2 text-sm text-amber-100/75">Preencha seus dados para continuar.</p>
+            </div>
+
+            <label className="mt-7 block text-sm font-black uppercase text-amber-300" htmlFor="participant-name">Nome</label>
+            <input
+              id="participant-name"
+              autoFocus
+              autoComplete="name"
+              maxLength={80}
+              value={participantName}
+              onChange={(event) => { setParticipantName(event.target.value); setRegisterError(""); }}
+              className="mt-2 min-h-14 w-full rounded-md border border-amber-400/55 bg-[#2b211c] px-4 text-lg text-amber-50 outline-none placeholder:text-amber-100/30 focus:border-amber-300 focus:ring-2 focus:ring-amber-400/25"
+              placeholder="Digite seu nome"
+            />
+
+            <label className="mt-5 block text-sm font-black uppercase text-amber-300" htmlFor="participant-phone">Telefone</label>
+            <input
+              id="participant-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              value={participantPhone}
+              onChange={(event) => { setParticipantPhone(formatPhone(event.target.value)); setRegisterError(""); }}
+              className="mt-2 min-h-14 w-full rounded-md border border-amber-400/55 bg-[#2b211c] px-4 text-lg text-amber-50 outline-none placeholder:text-amber-100/30 focus:border-amber-300 focus:ring-2 focus:ring-amber-400/25"
+              placeholder="(00) 00000-0000"
+            />
+
+            {registerError && <p role="alert" className="mt-4 rounded-md border border-red-400/35 bg-red-950/50 p-3 text-center text-sm font-bold text-red-200">{registerError}</p>}
+
+            <button
+              type="submit"
+              disabled={savingParticipant || !participantName.trim() || !participantPhone.replace(/\D/g, "")}
+              className="mt-7 min-h-14 w-full rounded-md border-2 border-amber-200 bg-gradient-to-b from-amber-400 to-amber-600 text-lg font-black uppercase text-[#271207] shadow-[0_5px_0_#713f12] active:translate-y-1 active:shadow-none disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {savingParticipant ? "Salvando..." : "Continuar"}
+            </button>
+            <button type="button" onClick={() => setScreen("start")} className="mt-4 min-h-11 w-full text-sm font-bold uppercase text-amber-200/75">Voltar</button>
+          </form>
         </section>
       )}
 
@@ -952,13 +1036,14 @@ export default function BarGame() {
           onPrize={(prize: BarPrize) => {
             const updated = { ...finalResult, prizeId: prize.id, prizeName: prize.name };
             setFinalResult(updated);
-            void saveBarResult(updated).catch((error) => console.error("Falha ao salvar premio offline", error));
           }}
           onFinish={() => {
             setScore(0);
             setDrunk(0);
             setRemaining(GAME_SECONDS);
             setFinalResult(null);
+            setParticipantName("");
+            setParticipantPhone("");
             setScreen("start");
           }}
         />
