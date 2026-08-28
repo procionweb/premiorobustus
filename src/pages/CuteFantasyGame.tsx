@@ -38,6 +38,7 @@ export default function CuteFantasyGame() {
         wasd!: Record<string, any>;
         chest!: any;
         enemies!: any;
+        animals!: any;
         lastHit = 0;
         facing: Direction = "down";
         chestOpened = false;
@@ -56,6 +57,7 @@ export default function CuteFantasyGame() {
           this.load.image("water", asset("Tiles/Water_Middle.png"));
           this.load.image("path", asset("Tiles/Path_Middle.png"));
           this.load.image("farmland", asset("Tiles/FarmLand_Tile.png"));
+          this.load.spritesheet("decor", asset("outdoor-decoration/Outdoor_Decor_Free.png"), { frameWidth: 16, frameHeight: 16 });
           this.load.image("house", asset("outdoor-decoration/House_1_Wood_Base_Blue.png"));
           this.load.image("tree", asset("outdoor-decoration/Oak_Tree.png"));
           this.load.image("tree-small", asset("outdoor-decoration/Oak_Tree_Small.png"));
@@ -71,9 +73,34 @@ export default function CuteFantasyGame() {
           this.add.tileSprite(230, 650, 144, 112, "farmland").setDepth(2);
           this.add.image(326, 435, "bridge", 0).setDepth(3);
 
+          const decorFrames = [0, 1, 2, 7, 8, 14, 15, 16, 56, 57, 63, 64, 70, 71];
+          for (let index = 0; index < 72; index += 1) {
+            const x = 18 + ((index * 83) % 604);
+            const y = 28 + ((index * 137) % 900);
+            const isRiver = x > 284 && x < 368;
+            const isPath = y > 400 && y < 470;
+            const isHouse = x > 145 && x < 305 && y > 235 && y < 410;
+            const isFarm = x > 145 && x < 315 && y > 585 && y < 720;
+            if (!isRiver && !isPath && !isHouse && !isFarm) this.add.sprite(x, y, "decor", decorFrames[index % decorFrames.length]).setDepth(3);
+          }
+
           this.add.image(225, 325, "house").setScale(1.25).setDepth(325);
-          [[68, 245], [270, 310], [76, 530], [555, 165], [78, 810], [548, 790], [505, 900]].forEach(([x, y]) => this.add.image(x, y, "tree").setDepth(y));
-          [[250, 470], [425, 245], [210, 760], [445, 680]].forEach(([x, y]) => this.add.image(x, y, "tree-small").setDepth(y));
+          const largeTrees = [[68, 245], [270, 310], [76, 530], [555, 165], [78, 810], [548, 790], [505, 900]];
+          const smallTrees = [[250, 470], [425, 245], [210, 760], [445, 680]];
+          largeTrees.forEach(([x, y]) => this.add.image(x, y, "tree").setDepth(y));
+          smallTrees.forEach(([x, y]) => this.add.image(x, y, "tree-small").setDepth(y));
+
+          const blockers: any[] = [];
+          const addBlocker = (x: number, y: number, width: number, height: number) => {
+            const zone = this.add.zone(x, y, width, height);
+            this.physics.add.existing(zone, true);
+            blockers.push(zone);
+          };
+          addBlocker(326, 200, 64, 400);
+          addBlocker(326, 714, 64, 492);
+          addBlocker(225, 360, 118, 62);
+          largeTrees.forEach(([x, y]) => addBlocker(x, y + 20, 18, 18));
+          smallTrees.forEach(([x, y]) => addBlocker(x, y + 12, 14, 14));
 
           this.anims.create({ key: "walk-down", frames: this.anims.generateFrameNumbers("player", { start: 0, end: 5 }), frameRate: 9, repeat: -1 });
           this.anims.create({ key: "walk-side", frames: this.anims.generateFrameNumbers("player", { start: 6, end: 11 }), frameRate: 9, repeat: -1 });
@@ -83,18 +110,23 @@ export default function CuteFantasyGame() {
 
           this.player = this.physics.add.sprite(285, 520, "player", 0).setDepth(520).setCollideWorldBounds(true);
           this.player.body.setSize(16, 14).setOffset(8, 17);
+          blockers.forEach((blocker) => this.physics.add.collider(this.player, blocker));
           this.cameras.main.setBounds(0, 0, 640, 960).startFollow(this.player, true, 0.11, 0.11).setZoom(1.6);
           this.cameras.main.setBackgroundColor("#75a84c");
 
           this.chest = this.physics.add.staticImage(485, 335, "chest").setScale(1.35).setDepth(335);
+          this.chest.refreshBody();
+          this.physics.add.collider(this.player, this.chest);
           this.enemies = this.physics.add.group();
           this.spawnEnemy(470, 540, "skeleton");
           this.spawnEnemy(205, 820, "slime");
 
-          this.addAnimal(115, 320, "chicken", 0);
-          this.addAnimal(210, 330, "pig", 1);
-          this.addAnimal(480, 735, "cow", 0);
+          this.animals = this.physics.add.staticGroup();
+          this.addAnimal(430, 560, "chicken", 0);
+          this.addAnimal(500, 605, "pig", 1);
+          this.addAnimal(455, 735, "cow", 0);
           this.addAnimal(535, 700, "sheep", 2);
+          this.physics.add.collider(this.player, this.animals);
 
           this.physics.add.overlap(this.player, this.enemies, (_player, enemy: any) => this.hurtPlayer(enemy));
           this.cursors = this.input.keyboard?.createCursorKeys();
@@ -104,8 +136,8 @@ export default function CuteFantasyGame() {
         }
 
         addAnimal(x: number, y: number, key: string, frame: number) {
-          const animal = this.add.sprite(x, y, key, frame).setDepth(y);
-          this.tweens.add({ targets: animal, x: x + 22, duration: 1800 + Math.random() * 900, yoyo: true, repeat: -1, ease: "Sine.inOut" });
+          const animal = this.animals.create(x, y, key, frame).setScale(2).setDepth(y);
+          animal.refreshBody();
         }
 
         spawnEnemy(x: number, y: number, key: string) {
