@@ -56,6 +56,13 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
 
   const strip = useMemo(() => Array.from({ length: prizes.length * 12 }, (_, index) => prizes[index % prizes.length]), [prizes]);
 
+  useEffect(() => {
+    if (!prizes.length || spinning || chosen) return;
+    const centeredStart = prizes.length * 5;
+    setReels([centeredStart, centeredStart, centeredStart]);
+    setReelDurations([0, 0, 0]);
+  }, [prizes, spinning, chosen]);
+
   const spin = () => {
     if (spinning || chosen || !prizes.length) return;
     setSpinning(true);
@@ -99,26 +106,28 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
         </header>
 
         <button type="button" onClick={spin} disabled={spinning || !!chosen || !prizes.length} className="relative mt-[clamp(108px,15dvh,142px)] w-full select-none rounded-md border-[4px] border-white bg-[linear-gradient(180deg,#42b99d,#16847c)] p-2.5 shadow-[0_0_0_4px_#19615e,0_9px_0_#0d615d,0_14px_26px_rgba(74,47,0,.35)] disabled:cursor-default">
-          <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-[32%] w-[calc(100%+14px)] -translate-x-1/2 -translate-y-1/2 border-y-[3px] border-white bg-[#ffe86b]/12 shadow-[0_0_0_2px_#f49422,0_0_16px_rgba(255,245,142,.85)]" />
-          <div className="grid h-[min(61vw,264px)] grid-cols-3 gap-2 overflow-hidden rounded-sm bg-[#135e5b] p-2 shadow-[inset_0_0_15px_rgba(0,0,0,.38)]">
-            {reels.map((centerIndex, reelIndex) => (
-              <div key={reelIndex} className="relative overflow-hidden rounded-sm border-[3px] border-white bg-[#dff4d3] shadow-[0_0_0_2px_#f39a21,inset_0_0_10px_rgba(0,0,0,.2)]" style={chosen ? { animation: `bhaskar-prize-flash 360ms ease-in-out ${4 + reelIndex}` } : undefined}>
-                <div
-                  className="absolute left-0 top-1/3 w-full will-change-transform"
-                  style={{
-                    height: `${strip.length * 100 / 3}%`,
-                    transform: `translateY(-${strip.length ? centerIndex * 100 / strip.length : 0}%)`,
-                    transition: reelDurations[reelIndex] ? `transform ${reelDurations[reelIndex]}ms cubic-bezier(.12,.58,.1,1)` : "none",
-                  }}
-                >
-                  {strip.map((prize, itemIndex) => (
-                    <div key={`${prize?.id ?? "loading"}-${itemIndex}`} className={`flex items-center justify-center border-y-2 border-[#74b756] px-1 ${itemIndex % 2 ? "bg-[linear-gradient(180deg,#f8fff1,#bfe98d)]" : "bg-[linear-gradient(180deg,#fff9d1,#f4c95b)]"}`} style={{ height: `${100 / strip.length}%` }}>
-                      <PrizeFace prize={prize} />
-                    </div>
-                  ))}
+          <div className="relative">
+            <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-1/3 w-[calc(100%+14px)] -translate-x-1/2 -translate-y-1/2 border-y-[3px] border-white bg-[#ffe86b]/12 shadow-[0_0_0_2px_#f49422,0_0_16px_rgba(255,245,142,.85)]" />
+            <div className="grid h-[min(61vw,264px)] grid-cols-3 gap-2 overflow-hidden rounded-sm bg-[#135e5b] p-2 shadow-[inset_0_0_15px_rgba(0,0,0,.38)]">
+              {reels.map((centerIndex, reelIndex) => (
+                <div key={reelIndex} className="relative overflow-hidden rounded-sm border-[3px] border-white bg-[#dff4d3] shadow-[0_0_0_2px_#f39a21,inset_0_0_10px_rgba(0,0,0,.2)]" style={chosen ? { animation: `bhaskar-prize-flash 360ms ease-in-out ${4 + reelIndex}` } : undefined}>
+                  <div
+                    className="absolute left-0 top-1/3 w-full will-change-transform"
+                    style={{
+                      height: `${strip.length * 100 / 3}%`,
+                      transform: `translateY(-${strip.length ? centerIndex * 100 / strip.length : 0}%)`,
+                      transition: reelDurations[reelIndex] ? `transform ${reelDurations[reelIndex]}ms cubic-bezier(.12,.58,.1,1)` : "none",
+                    }}
+                  >
+                    {strip.map((prize, itemIndex) => (
+                      <div key={`${prize?.id ?? "loading"}-${itemIndex}`} className={`flex items-center justify-center border-y-2 border-[#74b756] px-1 ${itemIndex % 2 ? "bg-[linear-gradient(180deg,#f8fff1,#bfe98d)]" : "bg-[linear-gradient(180deg,#fff9d1,#f4c95b)]"}`} style={{ height: `${100 / strip.length}%` }}>
+                        <PrizeFace prize={prize} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
           {!chosen && <div className="mt-3 flex items-center justify-center gap-2 rounded-sm bg-[#155f5b] py-2 font-sans text-[11px] font-black uppercase tracking-[0.12em] text-white [text-shadow:0_1px_2px_#174f4c]"><Sparkles size={15} />{spinning ? "Sorteando..." : prizes.length ? "Toque para sortear" : "Carregando prêmios..."}</div>}
         </button>
