@@ -21,8 +21,8 @@ export default function BarGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerSpriteRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const playerFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
-  const bagOpenRef = useRef<HTMLImageElement | null>(null);
-  const bagOpenFramesRef = useRef<HTMLCanvasElement[]>([]);
+  const bagOpenRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
+  const bagOpenFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
   const backgroundPeopleRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundPeopleFrames = useRef<Record<string, HTMLCanvasElement>>({});
   const backgroundCastRef = useRef([0, 1, 2, 3]);
@@ -192,7 +192,7 @@ export default function BarGame() {
     });
     const players: Record<Character, string> = {
       jackson: "/bar-game/jackson-bag-walk-sprites.png",
-      ginaldo: "/bar-game/ginaldo-sprites.png",
+      ginaldo: "/bar-game/ginaldo-bag-walk-sprites.png",
     };
     Object.entries(players).forEach(([key, src]) => {
       const image = new Image();
@@ -308,12 +308,20 @@ export default function BarGame() {
       if (image.complete && image.naturalWidth) prepareFrames();
       else image.addEventListener("load", prepareFrames, { once: true });
     });
-    const bagOpen = new Image();
-    bagOpen.src = "/bar-game/jackson-bag-open-sprites.png";
-    bagOpenRef.current = bagOpen;
-    bagOpen.onload = () => {
-      bagOpenFramesRef.current = [0, 1].map((column) => isolateOpenBagPose(bagOpen, column));
+    const openBagSources: Record<Character, string> = {
+      jackson: "/bar-game/jackson-bag-open-sprites.png",
+      ginaldo: "/bar-game/ginaldo-bag-open-sprites.png",
     };
+    (Object.keys(openBagSources) as Character[]).forEach((character) => {
+      const image = new Image();
+      image.src = openBagSources[character];
+      bagOpenRefs.current[character] = image;
+      image.onload = () => {
+        bagOpenFramesRef.current[character] = character === "jackson"
+          ? [0, 1].map((column) => isolateOpenBagPose(image, column))
+          : [0, 1].map((column) => isolatePerson(image, column, 2, 0, 1, 1, 1));
+      };
+    });
     people.forEach((src, index) => {
       const image = new Image();
       image.src = src;
@@ -631,11 +639,11 @@ export default function BarGame() {
       if (!sprite?.complete) return;
       ctx.save();
       ctx.translate(x, 0);
-      if (facing === "right" && selectedCharacter !== "jackson") ctx.scale(-1, 1);
       ctx.translate(0, y);
-      const useOpenBag = selectedCharacter === "jackson" && elapsed < bagOpenUntil && bagOpenFramesRef.current.length;
+      const openBagFrames = bagOpenFramesRef.current[selectedCharacter];
+      const useOpenBag = elapsed < bagOpenUntil && openBagFrames.length;
       const frameImage = useOpenBag
-        ? bagOpenFramesRef.current[facing === "right" ? 1 : 0]
+        ? openBagFrames[facing === "right" ? 1 : 0]
         : playerFramesRef.current[selectedCharacter][moving ? 1 + (Math.floor(frameClock / 0.14) % 3) : 0];
       if (frameImage) {
         const drawH = Math.min(height * 0.57, width * 1.32, 560);
