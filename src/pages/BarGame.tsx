@@ -933,15 +933,13 @@ export default function BarGame() {
             </h1>
             <p className="mt-4 text-[clamp(15px,3.5vw,22px)] font-black uppercase tracking-[.12em] text-[#fff0a6]">Aguarde seu prêmio</p>
           </div>
-          <img
-            src={`/bar-game/thanks-${selectedCharacter}.png`}
-            alt={selectedCharacter === "jackson" ? "Jackson agradecendo" : "Ginaldo agradecendo"}
-            className={`absolute bottom-0 left-1/2 object-contain object-bottom animate-[thanks-character-in_.6s_.12s_ease-out_both] ${
-              selectedCharacter === "ginaldo"
-                ? "h-[78dvh] w-[min(140vw,920px)]"
-                : "h-[72dvh] w-[min(96vw,720px)]"
-            }`}
-          />
+          <div className="absolute bottom-0 left-1/2 h-[72dvh] w-[min(96vw,720px)] animate-[thanks-character-in_.6s_.12s_ease-out_both]">
+            <img
+              src={`/bar-game/thanks-${selectedCharacter}.png`}
+              alt={selectedCharacter === "jackson" ? "Jackson agradecendo" : "Ginaldo agradecendo"}
+              className={`h-full w-full object-contain object-bottom ${selectedCharacter === "ginaldo" ? "origin-bottom scale-[1.68]" : ""}`}
+            />
+          </div>
         </section>
       )}
 
