@@ -304,7 +304,9 @@ export default function BarGame() {
     (Object.keys(players) as Character[]).forEach((character) => {
       const image = playerSpriteRefs.current[character];
       const prepareFrames = () => {
-        playerFramesRef.current[character] = [0, 1, 2, 3, 4].map((column) => isolatePerson(image, column, 5, 0));
+        playerFramesRef.current[character] = [0, 1, 2, 3, 4].map((column) =>
+          isolatePerson(image, column, 5, 0, character === "ginaldo" ? 1.35 : 1),
+        );
       };
       if (image.complete && image.naturalWidth) prepareFrames();
       else image.addEventListener("load", prepareFrames, { once: true });
