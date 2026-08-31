@@ -6,12 +6,13 @@ import { useNavigate } from "react-router-dom";
 import BhaskarPrizeRoulette from "@/components/BhaskarPrizeRoulette";
 import { createBarParticipantId, createBarResultId, saveBarParticipant, type BarGameResult, type BarPrize } from "@/lib/barGameDb";
 
-type Screen = "start" | "register" | "selection" | "playing" | "roulette";
+type Screen = "start" | "register" | "selection" | "playing" | "thanks" | "roulette";
 type Character = "jackson" | "ginaldo";
 type FallingItem = { x: number; y: number; speed: number; spin: number; variant: number };
 type BagDrop = { startX: number; startY: number; startedAt: number; variant: number };
 
 const GAME_SECONDS = 30;
+const THANK_YOU_MS = 3000;
 const USE_NATIVE_MUSIC = Capacitor.isNativePlatform();
 const NATIVE_MENU_ID = "bhaskar-menu-music";
 const NATIVE_GAME_ID = "bhaskar-game-music";
@@ -393,12 +394,12 @@ export default function BarGame() {
 
   useEffect(() => {
     if (USE_NATIVE_MUSIC) {
-      switchNativeMusic(screen === "playing" ? "game" : screen === "roulette" ? "stopped" : "menu");
+      switchNativeMusic(screen === "playing" ? "game" : ["thanks", "roulette"].includes(screen) ? "stopped" : "menu");
       return;
     }
     const menu = audioRefs.current.menu;
     if (!menu) return;
-    if (screen === "playing" || screen === "roulette") {
+    if (["playing", "thanks", "roulette"].includes(screen)) {
       menu.pause();
       menu.currentTime = 0;
       return;
@@ -414,6 +415,12 @@ export default function BarGame() {
       window.removeEventListener("keydown", startMenuMusic);
     };
   }, [screen, switchNativeMusic]);
+
+  useEffect(() => {
+    if (screen !== "thanks" || !finalResult) return;
+    const timer = window.setTimeout(() => setScreen("roulette"), THANK_YOU_MS);
+    return () => window.clearTimeout(timer);
+  }, [screen, finalResult]);
 
   useEffect(() => {
     if (!USE_NATIVE_MUSIC) return;
@@ -758,7 +765,7 @@ export default function BarGame() {
         setRemaining(0);
         setFinalResult(result);
         gameStartingRef.current = false;
-        setScreen("roulette");
+        setScreen("thanks");
         return;
       }
       animationFrame = requestAnimationFrame(render);
@@ -908,6 +915,29 @@ export default function BarGame() {
             <button aria-label="Confirmar personagem" onClick={() => { playUiSound("button"); window.setTimeout(startGame, 140); }} className="absolute bottom-0 left-[11%] h-[7%] w-[34%]" />
             <button aria-label="Voltar" onClick={() => { playUiSound("button"); setScreen("start"); }} className="absolute bottom-0 right-[11%] h-[7%] w-[34%]" />
           </div>
+        </section>
+      )}
+
+      {screen === "thanks" && finalResult && (
+        <section className="absolute inset-0 z-40 overflow-hidden bg-[#071d1b] text-center">
+          <style>{`
+            @keyframes thanks-character-in { from { opacity: 0; transform: translate(-50%, 8%) scale(.9); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+            @keyframes thanks-copy-in { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: translateY(0); } }
+          `}</style>
+          <img src="/bar-game/bar-background.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-45" />
+          <div className="absolute inset-0 bg-black/45" />
+          <div className="absolute inset-x-5 top-[max(7dvh,env(safe-area-inset-top))] z-10 animate-[thanks-copy-in_.55s_ease-out_both]">
+            <p className="text-[clamp(12px,2.5vw,18px)] font-black uppercase tracking-[.3em] text-amber-300">Bhaskar Licores</p>
+            <h1 className="mx-auto mt-3 max-w-[620px] font-sans text-[clamp(36px,9vw,68px)] font-black uppercase leading-[.98] text-white [text-shadow:0_4px_0_#154d4c,0_8px_24px_rgba(0,0,0,.75)]">
+              Obrigado por jogar nosso jogo!
+            </h1>
+            <p className="mt-4 text-[clamp(15px,3.5vw,22px)] font-black uppercase tracking-[.12em] text-[#fff0a6]">Aguarde seu prêmio</p>
+          </div>
+          <img
+            src={`/bar-game/thanks-${selectedCharacter}.png`}
+            alt={selectedCharacter === "jackson" ? "Jackson agradecendo" : "Ginaldo agradecendo"}
+            className="absolute bottom-0 left-1/2 h-[72dvh] w-[min(96vw,720px)] object-contain object-bottom animate-[thanks-character-in_.6s_.12s_ease-out_both]"
+          />
         </section>
       )}
 
