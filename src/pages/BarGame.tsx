@@ -8,10 +8,10 @@ import { createBarParticipantId, createBarResultId, saveBarParticipant, type Bar
 
 type Screen = "start" | "register" | "selection" | "playing" | "roulette";
 type Character = "jackson" | "ginaldo";
-type FallingItem = { x: number; y: number; speed: number; kind: "drink" | "water" | "medicine" | "glucose"; spin: number; variant: number };
+type FallingItem = { x: number; y: number; speed: number; spin: number; variant: number };
+type BagDrop = { startX: number; startY: number; startedAt: number; variant: number };
 
 const GAME_SECONDS = 30;
-const ITEM_EFFECT = { water: -10, medicine: -16, glucose: -22 } as const;
 const USE_NATIVE_MUSIC = Capacitor.isNativePlatform();
 const NATIVE_MENU_ID = "bhaskar-menu-music";
 const NATIVE_GAME_ID = "bhaskar-game-music";
@@ -21,7 +21,8 @@ export default function BarGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const playerSpriteRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const playerFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
-  const drunkPoseRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
+  const bagOpenRef = useRef<HTMLImageElement | null>(null);
+  const bagOpenFramesRef = useRef<HTMLCanvasElement[]>([]);
   const backgroundPeopleRefs = useRef<Record<string, HTMLImageElement>>({});
   const backgroundPeopleFrames = useRef<Record<string, HTMLCanvasElement>>({});
   const backgroundCastRef = useRef([0, 1, 2, 3]);
@@ -29,8 +30,6 @@ export default function BarGame() {
   const walkerSpriteRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const walkerFramesRef = useRef<Record<Character, HTMLCanvasElement[]>>({ jackson: [], ginaldo: [] });
   const bottleFramesRef = useRef<HTMLImageElement[]>([]);
-  const remedyImagesRef = useRef<Record<string, HTMLImageElement>>({});
-  const fallenPlayerRefs = useRef<Record<Character, HTMLImageElement>>({} as Record<Character, HTMLImageElement>);
   const backgroundRef = useRef<HTMLImageElement | null>(null);
   const backgroundImagesRef = useRef<HTMLImageElement[]>([]);
   const currentBackgroundRef = useRef(-1);
@@ -45,7 +44,6 @@ export default function BarGame() {
   const [selectedCharacter, setSelectedCharacter] = useState<Character>("jackson");
   const [gameRun, setGameRun] = useState(0);
   const [score, setScore] = useState(0);
-  const [drunk, setDrunk] = useState(0);
   const [remaining, setRemaining] = useState(GAME_SECONDS);
   const [finalResult, setFinalResult] = useState<BarGameResult | null>(null);
   const [participantName, setParticipantName] = useState("");
@@ -134,7 +132,7 @@ export default function BarGame() {
     if (gameStartingRef.current) return;
     gameStartingRef.current = true;
     musicShouldPlayRef.current = false;
-    ["cheer", "music", "menu", "burp", "drink"].forEach((key) => {
+    ["cheer", "music", "menu", "drink"].forEach((key) => {
       const audio = audioRefs.current[key];
       if (!audio) return;
       try { audio.pause(); audio.currentTime = 0; } catch {}
@@ -160,7 +158,6 @@ export default function BarGame() {
       backgroundRef.current = backgrounds[nextBackground];
     }
     setScore(0);
-    setDrunk(0);
     setRemaining(GAME_SECONDS);
     setFinalResult(null);
     setGameRun((run) => run + 1);
@@ -194,31 +191,13 @@ export default function BarGame() {
       selection.src = `/bar-game/selecao-${character}.png`;
     });
     const players: Record<Character, string> = {
-      jackson: "/bar-game/personagem-sprites-transparente.png",
+      jackson: "/bar-game/jackson-bag-walk-sprites.png",
       ginaldo: "/bar-game/ginaldo-sprites.png",
     };
     Object.entries(players).forEach(([key, src]) => {
       const image = new Image();
       image.src = src;
       playerSpriteRefs.current[key as Character] = image;
-    });
-    const poses: Record<Character, string> = {
-      jackson: "/bar-game/personagem-tombando-frente.png",
-      ginaldo: "/bar-game/ginaldo-tombando.png",
-    };
-    Object.entries(poses).forEach(([key, src]) => {
-      const image = new Image();
-      image.src = src;
-      drunkPoseRefs.current[key as Character] = image;
-    });
-    const fallen: Record<Character, string> = {
-      jackson: "/bar-game/jackson-caido.png",
-      ginaldo: "/bar-game/ginaldo-caido.png",
-    };
-    Object.entries(fallen).forEach(([key, src]) => {
-      const image = new Image();
-      image.src = src;
-      fallenPlayerRefs.current[key as Character] = image;
     });
     const people = Array.from({ length: 13 }, (_, index) => `/bar-game/figurante-${index + 1}.png`);
     const isolatePerson = (image: HTMLImageElement, column: number, columns: number, row: number, widthScale = 1, rows = 2, heightScale = 1) => {
@@ -273,6 +252,52 @@ export default function BarGame() {
       frameCtx.putImageData(pixels, 0, 0);
       return frame;
     };
+    const isolateOpenBagPose = (image: HTMLImageElement, column: number) => {
+      const cellW = Math.floor(image.naturalWidth / 2);
+      const frame = document.createElement("canvas");
+      frame.width = cellW;
+      frame.height = image.naturalHeight;
+      const frameCtx = frame.getContext("2d", { willReadFrequently: true });
+      if (!frameCtx) return frame;
+      frameCtx.drawImage(image, column * cellW, 0, cellW, image.naturalHeight, 0, 0, cellW, image.naturalHeight);
+      const pixels = frameCtx.getImageData(0, 0, cellW, image.naturalHeight);
+      const total = cellW * image.naturalHeight;
+      const visited = new Uint8Array(total);
+      const queue = new Int32Array(total);
+      let head = 0;
+      let tail = 0;
+      const enqueue = (index: number) => {
+        if (visited[index]) return;
+        const p = index * 4;
+        const r = pixels.data[p];
+        const g = pixels.data[p + 1];
+        const b = pixels.data[p + 2];
+        if (r < 215 || g < 215 || b < 215 || Math.max(r, g, b) - Math.min(r, g, b) > 18) return;
+        visited[index] = 1;
+        queue[tail++] = index;
+      };
+      for (let x = 0; x < cellW; x++) {
+        enqueue(x);
+        enqueue((image.naturalHeight - 1) * cellW + x);
+      }
+      for (let y = 0; y < image.naturalHeight; y++) {
+        enqueue(y * cellW);
+        enqueue(y * cellW + cellW - 1);
+      }
+      while (head < tail) {
+        const index = queue[head++];
+        const x = index % cellW;
+        if (x > 0) enqueue(index - 1);
+        if (x < cellW - 1) enqueue(index + 1);
+        if (index >= cellW) enqueue(index - cellW);
+        if (index < total - cellW) enqueue(index + cellW);
+      }
+      for (let index = 0; index < total; index++) {
+        if (visited[index]) pixels.data[index * 4 + 3] = 0;
+      }
+      frameCtx.putImageData(pixels, 0, 0);
+      return frame;
+    };
     (Object.keys(players) as Character[]).forEach((character) => {
       const image = playerSpriteRefs.current[character];
       const prepareFrames = () => {
@@ -281,6 +306,12 @@ export default function BarGame() {
       if (image.complete && image.naturalWidth) prepareFrames();
       else image.addEventListener("load", prepareFrames, { once: true });
     });
+    const bagOpen = new Image();
+    bagOpen.src = "/bar-game/jackson-bag-open-sprites.png";
+    bagOpenRef.current = bagOpen;
+    bagOpen.onload = () => {
+      bagOpenFramesRef.current = [0, 1].map((column) => isolateOpenBagPose(bagOpen, column));
+    };
     people.forEach((src, index) => {
       const image = new Image();
       image.src = src;
@@ -314,23 +345,12 @@ export default function BarGame() {
       image.src = `/bar-game/bottles/${filename}`;
       bottleFramesRef.current[index] = image;
     });
-    const remedies = {
-      water: "/bar-game/remedies/agua.png",
-      medicine: "/bar-game/remedies/eno.png",
-      glucose: "/bar-game/remedies/engov.png",
-    };
-    Object.entries(remedies).forEach(([key, src]) => {
-      const image = new Image();
-      image.src = src;
-      remedyImagesRef.current[key] = image;
-    });
     const audio = {
       cheer: new Audio("/bar-game/audio/comemoracao.mp3"),
       music: new Audio("/bar-game/audio/musica-fundo.mp3?v=android-audio-2"),
       menu: new Audio("/bar-game/audio/musica-menu.mp3?v=android-audio-2"),
       uiButton: new Audio("/bar-game/audio/botao.mp3"),
       uiSelect: new Audio("/bar-game/audio/select.wav"),
-      burp: new Audio("/bar-game/audio/arroto.mp3"),
       drink: new Audio("/bar-game/audio/bebida.mp3"),
     };
     audio.music.loop = true;
@@ -340,7 +360,6 @@ export default function BarGame() {
     audio.uiButton.volume = 0.75;
     audio.uiSelect.volume = 0.72;
     audio.cheer.volume = 0.2;
-    audio.burp.volume = 0.95;
     audio.drink.volume = 0.95;
     const resumeActiveMusic = () => {
       if (USE_NATIVE_MUSIC) return;
@@ -417,24 +436,17 @@ export default function BarGame() {
     let animationFrame = 0;
     let stopped = false;
     let localScore = 0;
-    let localDrunk = 0;
     let frameClock = 0;
     let facing: "left" | "right" = "right";
     let velocityX = 0;
     let dragging = false;
     let celebrateUntil = 0;
+    let bagOpenUntil = 0;
+    let bagDrop: BagDrop | null = null;
     let lastCheerAt = -3;
-    let nextBurpAt = 4 + Math.random() * 3;
-    let balance = 0;
-    let balanceVelocity = 0;
-    let balancePush = (Math.random() < 0.5 ? -1 : 1) * 0.08;
-    let nextBalanceShift = 1.2;
-    let balanceActivatedAt = -1;
-    let balanceDangerTime = 0;
-    let fellAt = -1;
     const keys = new Set<string>();
     const items: FallingItem[] = [];
-    const playAudio = (key: "cheer" | "burp" | "drink") => {
+    const playAudio = (key: "cheer" | "drink") => {
       const source = audioRefs.current[key];
       if (!source) return;
       if (key === "drink") {
@@ -505,39 +517,19 @@ export default function BarGame() {
       ctx.save();
       ctx.translate(item.x, item.y);
       ctx.rotate(item.spin);
-      ctx.strokeStyle = "rgba(255,255,255,.8)";
-      ctx.lineWidth = 2;
-      const drawRemedy = (image: HTMLImageElement | undefined, maxWidth: number, maxHeight: number) => {
-        if (!image?.complete || !image.naturalWidth) return;
-        const scale = Math.min(maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
-        const drawW = image.naturalWidth * scale;
-        const drawH = image.naturalHeight * scale;
-        ctx.shadowColor = "rgba(0,0,0,.35)";
+      const bottle = bottleFramesRef.current[item.variant % 9];
+      if (bottle) {
+        const drawH = 94;
+        const drawW = drawH * (bottle.width / bottle.height);
+        ctx.shadowColor = "rgba(0,0,0,.38)";
         ctx.shadowBlur = 7;
         ctx.shadowOffsetY = 4;
-        ctx.drawImage(image, -drawW / 2, -drawH / 2, drawW, drawH);
-      };
-      if (item.kind === "drink") {
-        const bottle = bottleFramesRef.current[item.variant % 9];
-        if (bottle) {
-          const drawH = 86;
-          const drawW = drawH * (bottle.width / bottle.height);
-          ctx.shadowColor = "rgba(0,0,0,.38)";
-          ctx.shadowBlur = 7;
-          ctx.shadowOffsetY = 4;
-          ctx.drawImage(bottle, -drawW / 2, -drawH / 2, drawW, drawH);
-        } else {
-          ctx.fillStyle = "#7c2d12";
-          ctx.beginPath();
-          ctx.roundRect(-10, -22, 20, 44, 6);
-          ctx.fill();
-        }
-      } else if (item.kind === "medicine") {
-        drawRemedy(remedyImagesRef.current.medicine, 44, 52);
-      } else if (item.kind === "glucose") {
-        drawRemedy(remedyImagesRef.current.glucose, 82, 48);
+        ctx.drawImage(bottle, -drawW / 2, -drawH / 2, drawW, drawH);
       } else {
-        drawRemedy(remedyImagesRef.current.water, 46, 80);
+        ctx.fillStyle = "#7c2d12";
+        ctx.beginPath();
+        ctx.roundRect(-10, -22, 20, 44, 6);
+        ctx.fill();
       }
       ctx.restore();
     };
@@ -637,95 +629,17 @@ export default function BarGame() {
       if (!sprite?.complete) return;
       ctx.save();
       ctx.translate(x, 0);
-      if (facing === "right") ctx.scale(-1, 1);
-      const drunkRock = Math.sin(elapsed * 3.1) * Math.min(0.09, localDrunk * 0.0009);
+      if (facing === "right" && selectedCharacter !== "jackson") ctx.scale(-1, 1);
       ctx.translate(0, y);
-      ctx.rotate(drunkRock);
-
-      const drawStanding = (alpha: number) => {
-        const frame = moving ? 1 + (Math.floor(frameClock / 0.14) % 3) : 0;
-        const frameImage = playerFramesRef.current[selectedCharacter][frame];
-        if (!frameImage) return;
-        const drawH = Math.min(height * 0.48, 390);
+      const useOpenBag = selectedCharacter === "jackson" && elapsed < bagOpenUntil && bagOpenFramesRef.current.length;
+      const frameImage = useOpenBag
+        ? bagOpenFramesRef.current[facing === "right" ? 1 : 0]
+        : playerFramesRef.current[selectedCharacter][moving ? 1 + (Math.floor(frameClock / 0.14) % 3) : 0];
+      if (frameImage) {
+        const drawH = Math.min(height * 0.57, width * 1.32, 560);
         const drawW = drawH * (frameImage.width / frameImage.height);
-        ctx.globalAlpha = alpha;
         ctx.drawImage(frameImage, -drawW / 2, -drawH, drawW, drawH);
-      };
-      const drawLeaning = (alpha: number) => {
-        const pose = drunkPoseRefs.current[selectedCharacter];
-        if (!pose?.complete || !pose.naturalWidth) return;
-        const baseDrawH = Math.min(height * 0.48, 390);
-        const naturalWidth = baseDrawH * (pose.naturalWidth / pose.naturalHeight);
-        const maxWidth = baseDrawH * 0.8;
-        const drawH = baseDrawH * Math.min(1, maxWidth / naturalWidth);
-        const drawW = drawH * (pose.naturalWidth / pose.naturalHeight);
-        ctx.globalAlpha = alpha;
-        ctx.drawImage(pose, -drawW / 2, -drawH, drawW, drawH);
-      };
-
-      if (localDrunk >= 45) {
-        const wave = (Math.sin(elapsed * 2.15) + 1) / 2;
-        const blend = wave * wave * (3 - 2 * wave);
-        drawStanding(1 - blend);
-        drawLeaning(blend);
-      } else {
-        drawStanding(1);
       }
-      ctx.restore();
-    };
-
-    const drawFallenPlayer = () => {
-      const image = fallenPlayerRefs.current[selectedCharacter];
-      if (!image?.complete || !image.naturalWidth) return;
-      const maxW = width * 0.88;
-      const maxH = height * 0.43;
-      const scale = Math.min(maxW / image.naturalWidth, maxH / image.naturalHeight);
-      const drawW = image.naturalWidth * scale;
-      const drawH = image.naturalHeight * scale;
-      ctx.save();
-      ctx.globalAlpha = Math.min(1, (elapsed - fellAt) * 4);
-      ctx.drawImage(image, width / 2 - drawW / 2, height - 18 - drawH, drawW, drawH);
-      ctx.restore();
-    };
-
-    const drawBalanceBar = () => {
-      const barW = Math.min(280, width * 0.68);
-      const barH = 18;
-      const x = (width - barW) / 2;
-      const y = Math.max(138, Math.min(168, height * 0.17));
-      ctx.save();
-      ctx.fillStyle = "rgba(10,8,6,.82)";
-      ctx.strokeStyle = "rgba(255,255,255,.72)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.roundRect(x - 8, y - 25, barW + 16, 53, 10);
-      ctx.fill();
-      ctx.stroke();
-      ctx.fillStyle = "white";
-      ctx.font = "800 11px system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText("EQUILIBRIO", width / 2, y - 10);
-      const gradient = ctx.createLinearGradient(x, 0, x + barW, 0);
-      gradient.addColorStop(0, "#dc2626");
-      gradient.addColorStop(0.28, "#f59e0b");
-      gradient.addColorStop(0.5, "#22c55e");
-      gradient.addColorStop(0.72, "#f59e0b");
-      gradient.addColorStop(1, "#dc2626");
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.roundRect(x, y, barW, barH, 6);
-      ctx.fill();
-      const markerX = x + ((balance + 1) / 2) * barW;
-      ctx.fillStyle = "white";
-      ctx.strokeStyle = "#111827";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(markerX, y - 7);
-      ctx.lineTo(markerX - 8, y + barH + 7);
-      ctx.lineTo(markerX + 8, y + barH + 7);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
       ctx.restore();
     };
 
@@ -739,47 +653,16 @@ export default function BarGame() {
       const secondsLeft = Math.max(0, Math.min(GAME_SECONDS, GAME_SECONDS - elapsed));
       setRemaining(Math.ceil(secondsLeft));
 
-      const intoxication = localDrunk / 100;
-      if (localDrunk >= 30 && elapsed >= nextBurpAt) {
-        playAudio("burp");
-        nextBurpAt = elapsed + 4 + Math.random() * 5;
-      }
       const previousX = playerX;
       const keyboardDirection = (keys.has("arrowright") || keys.has("d") ? 1 : 0) - (keys.has("arrowleft") || keys.has("a") ? 1 : 0);
       const pointerDirection = Math.abs(targetX - playerX) > 8 ? Math.sign(targetX - playerX) : 0;
-      const controlDirection = keyboardDirection || pointerDirection;
-      const balanceActive = localDrunk >= 45;
-      if (!balanceActive) {
-        balance = 0;
-        balanceVelocity = 0;
-        balanceDangerTime = 0;
-        balanceActivatedAt = -1;
-      } else if (balanceActivatedAt < 0) {
-        balanceActivatedAt = elapsed;
-        nextBalanceShift = elapsed + 1.1;
-      }
-      if (fellAt < 0 && balanceActive) {
-        const activationRamp = Math.min(1, (elapsed - balanceActivatedAt) / 2.6);
-        if (elapsed >= nextBalanceShift) {
-          balancePush = (Math.random() * 2 - 1) * (0.04 + intoxication * 0.13);
-          nextBalanceShift = elapsed + 1.4 + Math.random() * 1.5;
-        }
-        const instability = (0.025 + intoxication * 0.08) * activationRamp;
-        balanceVelocity += (balancePush * activationRamp + balance * instability) * dt;
-        balanceVelocity *= Math.pow(0.12, dt);
-        balanceVelocity = Math.max(-0.2, Math.min(0.2, balanceVelocity));
-        balance += balanceVelocity * dt - controlDirection * 1.12 * dt;
-        balance = Math.max(-1.05, Math.min(1.05, balance));
-        balanceDangerTime = Math.abs(balance) >= 0.97 ? balanceDangerTime + dt : 0;
-        if (balanceDangerTime >= 0.65) fellAt = elapsed;
-      }
       if (keyboardDirection !== 0) {
         targetX = Math.max(45, Math.min(width - 45, targetX + keyboardDirection * 330 * dt));
       }
       const delayedTarget = targetX;
-      const response = Math.max(2.4, 10 - intoxication * 7);
+      const response = 10;
       const desiredVelocity = (delayedTarget - playerX) * response;
-      const maxSpeed = Math.max(90, 520 - intoxication * 300);
+      const maxSpeed = 520;
       const clampedVelocity = Math.max(-maxSpeed, Math.min(maxSpeed, desiredVelocity));
       const acceleration = keyboardDirection !== 0 ? 12 : 8;
       velocityX += (clampedVelocity - velocityX) * Math.min(1, dt * acceleration);
@@ -792,65 +675,59 @@ export default function BarGame() {
       const interval = Math.max(0.34, 0.72 - elapsed * 0.005);
       if (spawnClock >= interval) {
         spawnClock = 0;
-        const roll = Math.random();
-        const kind: FallingItem["kind"] = roll < 0.84 ? "drink" : roll < 0.91 ? "water" : roll < 0.96 ? "medicine" : "glucose";
-        items.push({ x: 30 + Math.random() * (width - 60), y: -40, speed: 150 + Math.random() * 95, kind, spin: 0, variant: Math.floor(Math.random() * 9) });
+        items.push({ x: 30 + Math.random() * (width - 60), y: -40, speed: 150 + Math.random() * 95, spin: 0, variant: Math.floor(Math.random() * 9) });
       }
 
       const playerY = height - 22;
-      const playerHeight = Math.min(height * 0.48, 390);
+      const playerHeight = Math.min(height * 0.57, width * 1.32, 560);
       for (let i = items.length - 1; i >= 0; i--) {
         const item = items[i];
         item.y += item.speed * dt;
         item.spin += dt * 2;
         if (item.y > playerY - playerHeight && item.y < playerY && Math.abs(item.x - playerX) < 82) {
           items.splice(i, 1);
-          localScore += item.kind === "drink" ? 10 : 5;
-          const drunkChange = item.kind === "drink" ? 10 : ITEM_EFFECT[item.kind];
-          localDrunk = Math.max(0, Math.min(100, localDrunk + drunkChange));
-          if (item.kind === "drink") {
-            celebrateUntil = elapsed + 1.15;
-            playAudio("drink");
-            if (elapsed - lastCheerAt >= 3) {
-              playAudio("cheer");
-              lastCheerAt = elapsed;
-            }
+          localScore += 10;
+          bagDrop = { startX: item.x, startY: item.y, startedAt: elapsed, variant: item.variant };
+          bagOpenUntil = elapsed + 0.8;
+          celebrateUntil = elapsed + 1.15;
+          playAudio("drink");
+          if (elapsed - lastCheerAt >= 3) {
+            playAudio("cheer");
+            lastCheerAt = elapsed;
           }
           setScore(localScore);
-          setDrunk(localDrunk);
         } else if (item.y > height + 40) {
           items.splice(i, 1);
         }
       }
 
       ctx.clearRect(0, 0, width, height);
-      ctx.save();
-      const twist = intoxication < 0.5 ? 0 : 0.12 + ((intoxication - 0.5) / 0.5) * 0.88;
-      const pulse = 1.025 + twist * (0.035 + Math.sin(elapsed * 1.7) * 0.012);
-      ctx.translate(width / 2, height / 2);
-      ctx.rotate(Math.sin(elapsed * 1.35) * twist * 0.018);
-      ctx.transform(1, Math.sin(elapsed * 1.9) * twist * 0.026, Math.cos(elapsed * 1.55) * twist * 0.022, 1, 0, 0);
-      ctx.scale(pulse, pulse);
-      ctx.translate(-width / 2, -height / 2);
       const bg = backgroundRef.current;
       if (bg?.complete) ctx.drawImage(bg, 0, 0, width, height);
       drawBackgroundPeople(elapsed < celebrateUntil);
       drawWalker();
-      ctx.save();
-      const sway = Math.sin(elapsed * 2.4) * intoxication * 8;
-      ctx.translate(sway, Math.cos(elapsed * 1.8) * intoxication * 3);
       items.forEach(drawItem);
-      if (fellAt < 0) drawPlayer(playerX, playerY, Math.abs(playerX - previousX) > 0.25);
-      else drawFallenPlayer();
-      ctx.restore();
-      ctx.restore();
-      drawBalanceBar();
+      if (bagDrop) {
+        const progress = Math.min(1, (elapsed - bagDrop.startedAt) / 0.48);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const bagMouthX = playerX + (facing === "right" ? 58 : -58);
+        const bagMouthY = playerY - playerHeight * 0.55;
+        drawItem({
+          x: bagDrop.startX + (bagMouthX - bagDrop.startX) * eased,
+          y: bagDrop.startY + (bagMouthY - bagDrop.startY) * eased,
+          speed: 0,
+          spin: progress * Math.PI * 1.5,
+          variant: bagDrop.variant,
+        });
+        if (progress >= 1) bagDrop = null;
+      }
+      drawPlayer(playerX, playerY, Math.abs(playerX - previousX) > 0.25 && elapsed >= bagOpenUntil);
 
-      if (secondsLeft <= 0 || (fellAt >= 0 && elapsed - fellAt >= 1.35)) {
+      if (secondsLeft <= 0) {
         stopped = true;
         musicShouldPlayRef.current = false;
         if (USE_NATIVE_MUSIC) switchNativeMusic("stopped");
-        ["cheer", "music", "burp", "drink"].forEach((key) => {
+        ["cheer", "music", "drink"].forEach((key) => {
           const audio = audioRefs.current[key];
           if (!audio) return;
           try { audio.pause(); audio.currentTime = 0; } catch {}
@@ -862,13 +739,12 @@ export default function BarGame() {
           playedAt: new Date().toISOString(),
           character: selectedCharacter,
           score: localScore,
-          drunk: Math.round(localDrunk),
-          outcome: fellAt >= 0 ? "fall" : "time",
+          drunk: 0,
+          outcome: "time",
           prizeId: null,
           prizeName: null,
         };
         setScore(localScore);
-        setDrunk(Math.round(localDrunk));
         setRemaining(0);
         setFinalResult(result);
         gameStartingRef.current = false;
@@ -920,22 +796,17 @@ export default function BarGame() {
       <canvas
         ref={canvasRef}
         className="absolute inset-0 h-full w-full"
-        style={{ filter: screen === "playing" ? `saturate(${1 + drunk * 0.003})` : undefined }}
       />
 
       {screen === "playing" && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-3 p-3 pt-[max(12px,env(safe-area-inset-top))]">
-          <div className="min-w-24 rounded-md border border-white/20 bg-black/65 px-3 py-2 text-center shadow-lg">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-4 pt-[max(16px,env(safe-area-inset-top))]">
+          <div className="min-w-32 rounded-md border border-white/25 bg-black/70 px-5 py-3 text-center shadow-lg">
             <span className="block text-[10px] font-bold uppercase text-amber-300">Pontos</span>
-            <strong className="text-xl">{score}</strong>
+            <strong className="text-3xl">{score}</strong>
           </div>
-          <div className="flex-1 rounded-md border border-white/20 bg-black/65 px-3 py-2 shadow-lg">
-            <div className="mb-1 flex justify-between text-[10px] font-bold uppercase"><span>Nível de embriaguez</span><span>{drunk}%</span></div>
-            <div className="h-3 overflow-hidden rounded-full bg-white/15"><div className="h-full bg-gradient-to-r from-amber-400 via-orange-500 to-red-600 transition-[width]" style={{ width: `${drunk}%` }} /></div>
-          </div>
-          <div className="min-w-20 rounded-md border border-white/20 bg-black/65 px-3 py-2 text-center shadow-lg">
+          <div className="min-w-32 rounded-md border border-white/25 bg-black/70 px-5 py-3 text-center shadow-lg">
             <span className="block text-[10px] font-bold uppercase text-amber-300">Tempo</span>
-            <strong className="text-xl">{remaining}s</strong>
+            <strong className="text-3xl">{remaining}s</strong>
           </div>
         </div>
       )}
@@ -1039,7 +910,6 @@ export default function BarGame() {
           }}
           onFinish={() => {
             setScore(0);
-            setDrunk(0);
             setRemaining(GAME_SECONDS);
             setFinalResult(null);
             setParticipantName("");

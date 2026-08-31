@@ -99,16 +99,16 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
     <section className="absolute inset-0 z-50 min-h-[100dvh] overflow-hidden bg-[#f9b719] text-center text-[#153f38]">
       <style>{`@keyframes bhaskar-prize-flash { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.9) saturate(1.35); box-shadow: 0 0 24px 8px rgba(255,255,190,.95), inset 0 0 18px rgba(255,255,255,.9); } }`}</style>
       <div className="absolute inset-0 bg-[linear-gradient(to_bottom,#269d88_0_14%,transparent_14%_87%,#197c79_87%_100%),repeating-conic-gradient(from_245deg_at_50%_48%,rgba(255,255,255,.14)_0deg_8deg,transparent_8deg_18deg),linear-gradient(155deg,#ffd83d,#ff9d13)]" />
-      <div className="relative z-10 mx-auto flex h-full min-h-[100dvh] w-full max-w-[430px] flex-col items-center overflow-hidden px-[clamp(14px,4vw,20px)] py-[clamp(12px,2dvh,18px)]">
-        <header className="relative flex w-[92%] shrink-0 flex-col items-center justify-center rounded-md border-[3px] border-white bg-[linear-gradient(180deg,#42c1a5,#188a80)] px-4 py-[clamp(8px,1.4dvh,13px)] shadow-[0_0_0_3px_#174b4d,0_6px_0_#0d6662,0_9px_18px_rgba(0,0,0,.25)]">
-          <h1 className="font-sans text-[clamp(26px,7.5vw,38px)] font-black uppercase tracking-[0.04em] text-white [text-shadow:0_3px_0_#154d4c]">Super Prêmio</h1>
-          <span className="mt-1 whitespace-nowrap rounded-full bg-[#155d59] px-4 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#fff2a4]">Fim de jogo · {score} pontos</span>
+      <div className="relative z-10 mx-auto flex h-full min-h-[100dvh] w-full max-w-[680px] flex-col items-center overflow-hidden px-[clamp(14px,3vw,28px)] py-[clamp(14px,2dvh,24px)]">
+        <header className="relative flex w-[94%] shrink-0 flex-col items-center justify-center rounded-md border-[3px] border-white bg-[linear-gradient(180deg,#42c1a5,#188a80)] px-5 py-[clamp(11px,1.7dvh,18px)] shadow-[0_0_0_3px_#174b4d,0_6px_0_#0d6662,0_9px_18px_rgba(0,0,0,.25)]">
+          <h1 className="font-sans text-[clamp(32px,7vw,52px)] font-black uppercase tracking-[0.04em] text-white [text-shadow:0_3px_0_#154d4c]">Super Prêmio</h1>
+          <span className="mt-1 whitespace-nowrap rounded-full bg-[#155d59] px-5 py-1.5 text-[clamp(10px,1.8vw,14px)] font-black uppercase tracking-[0.14em] text-[#fff2a4]">Fim de jogo · {score} pontos</span>
         </header>
 
-        <button type="button" onClick={spin} disabled={spinning || !!chosen || !prizes.length} className="relative mt-[clamp(108px,15dvh,142px)] w-full select-none rounded-md border-[4px] border-white bg-[linear-gradient(180deg,#42b99d,#16847c)] p-2.5 shadow-[0_0_0_4px_#19615e,0_9px_0_#0d615d,0_14px_26px_rgba(74,47,0,.35)] disabled:cursor-default">
+        <button type="button" onClick={spin} disabled={spinning || !!chosen || !prizes.length} className="relative mt-[clamp(72px,10dvh,118px)] w-full select-none rounded-md border-[5px] border-white bg-[linear-gradient(180deg,#42b99d,#16847c)] p-3 shadow-[0_0_0_4px_#19615e,0_9px_0_#0d615d,0_14px_26px_rgba(74,47,0,.35)] disabled:cursor-default">
           <div className="relative">
             <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 h-1/3 w-[calc(100%+14px)] -translate-x-1/2 -translate-y-1/2 border-y-[3px] border-white bg-[#ffe86b]/12 shadow-[0_0_0_2px_#f49422,0_0_16px_rgba(255,245,142,.85)]" />
-            <div className="grid h-[min(61vw,264px)] grid-cols-3 gap-2 overflow-hidden rounded-sm bg-[#135e5b] p-2 shadow-[inset_0_0_15px_rgba(0,0,0,.38)]">
+            <div className="grid h-[min(76vw,430px)] min-h-[290px] grid-cols-3 gap-2.5 overflow-hidden rounded-sm bg-[#135e5b] p-2.5 shadow-[inset_0_0_15px_rgba(0,0,0,.38)]">
               {reels.map((centerIndex, reelIndex) => (
                 <div key={reelIndex} className="relative overflow-hidden rounded-sm border-[3px] border-white bg-[#dff4d3] shadow-[0_0_0_2px_#f39a21,inset_0_0_10px_rgba(0,0,0,.2)]" style={chosen ? { animation: `bhaskar-prize-flash 360ms ease-in-out ${4 + reelIndex}` } : undefined}>
                   <div
@@ -129,7 +129,7 @@ export default function BhaskarPrizeRoulette({ score, onPrize, onFinish }: Props
               ))}
             </div>
           </div>
-          {!chosen && <div className="mt-3 flex items-center justify-center gap-2 rounded-sm bg-[#155f5b] py-2 font-sans text-[11px] font-black uppercase tracking-[0.12em] text-white [text-shadow:0_1px_2px_#174f4c]"><Sparkles size={15} />{spinning ? "Sorteando..." : prizes.length ? "Toque para sortear" : "Carregando prêmios..."}</div>}
+          {!chosen && <div className="mt-3 flex items-center justify-center gap-2 rounded-sm bg-[#155f5b] py-3 font-sans text-[clamp(12px,2vw,16px)] font-black uppercase tracking-[0.12em] text-white [text-shadow:0_1px_2px_#174f4c]"><Sparkles size={18} />{spinning ? "Sorteando..." : prizes.length ? "Toque para sortear" : "Carregando prêmios..."}</div>}
         </button>
 
         <div className="mt-auto flex w-full flex-col items-center justify-end pt-3">
