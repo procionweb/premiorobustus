@@ -272,7 +272,9 @@ export default function BarGame() {
         const r = pixels.data[p];
         const g = pixels.data[p + 1];
         const b = pixels.data[p + 2];
-        if (r < 215 || g < 215 || b < 215 || Math.max(r, g, b) - Math.min(r, g, b) > 18) return;
+        // The source sheet uses a neutral preview matte. Flood only that matte
+        // from the canvas edges so light clothes remain intact behind the outline.
+        if (r < 175 || g < 175 || b < 175 || Math.max(r, g, b) - Math.min(r, g, b) > 35) return;
         visited[index] = 1;
         queue[tail++] = index;
       };
