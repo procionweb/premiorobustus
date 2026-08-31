@@ -695,7 +695,7 @@ export default function BarGame() {
         items.push({ x: 30 + Math.random() * (width - 60), y: -40, speed: 150 + Math.random() * 95, spin: 0, variant: Math.floor(Math.random() * 9) });
       }
 
-      const playerY = height - 22;
+      const playerY = height - (selectedCharacter === "ginaldo" ? 58 : 28);
       const playerHeight = Math.min(height * 0.57, width * 1.32, 560);
       for (let i = items.length - 1; i >= 0; i--) {
         const item = items[i];
