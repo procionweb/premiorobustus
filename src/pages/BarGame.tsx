@@ -936,7 +936,11 @@ export default function BarGame() {
           <img
             src={`/bar-game/thanks-${selectedCharacter}.png`}
             alt={selectedCharacter === "jackson" ? "Jackson agradecendo" : "Ginaldo agradecendo"}
-            className="absolute bottom-0 left-1/2 h-[72dvh] w-[min(96vw,720px)] object-contain object-bottom animate-[thanks-character-in_.6s_.12s_ease-out_both]"
+            className={`absolute bottom-0 left-1/2 object-contain object-bottom animate-[thanks-character-in_.6s_.12s_ease-out_both] ${
+              selectedCharacter === "ginaldo"
+                ? "h-[78dvh] w-[min(140vw,920px)]"
+                : "h-[72dvh] w-[min(96vw,720px)]"
+            }`}
           />
         </section>
       )}
